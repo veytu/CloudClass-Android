@@ -1,0 +1,4 @@
+include ':AgoraClassSDK'
+include ':AgoraEduUIKit'
+include ':AgoraCloudScene'
+rootProject.name = 'open-cloudclass-android'
