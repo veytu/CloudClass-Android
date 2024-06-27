@@ -70,8 +70,7 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
     private val streamHandler = object : StreamHandler() {
         override fun onStreamJoined(streamInfo: AgoraEduContextStreamInfo, operator: AgoraEduContextUserInfo?) {
             super.onStreamJoined(streamInfo, operator)
-            if (localStreamInfo == null && streamInfo.owner.userUuid == eduCore()?.eduContextPool()?.userContext()
-                    ?.getLocalUserInfo()?.userUuid) {
+            if (localStreamInfo == null && streamInfo.owner.userUuid == eduCore()?.eduContextPool()?.userContext()?.getLocalUserInfo()?.userUuid) {
                 localStreamInfo = streamInfo
             }
         }
@@ -83,13 +82,28 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
             }
         }
 
+        override fun onStreamMessage(channelId: String, streamId: Int, data: ByteArray?) {
+            super.onStreamMessage(channelId, streamId, data)
+            LogX.i(TAG, "onStreamMessage channelId=$channelId, streamId=$streamId, data=${data?.contentToString()}")
+
+        }
+
+        override fun onStreamMessageError(
+            channelId: String,
+            streamId: Int,
+            error: Int,
+            missed: Int,
+            cached: Int,
+        ) {
+            super.onStreamMessageError(channelId, streamId, error, missed, cached)
+            LogX.i(TAG, "onStreamMessageError channelId=$channelId, streamId=$streamId, error=$error, missed=$missed, cached=$cached")
+        }
+
         override fun onStreamUpdated(streamInfo: AgoraEduContextStreamInfo, operator: AgoraEduContextUserInfo?) {
             super.onStreamUpdated(streamInfo, operator)
             updateDevice(streamInfo)
             eduCore()?.eduContextPool()?.userContext()?.getLocalUserInfo()?.let { localUser ->
-                if (localUser.role == AgoraEduContextUserRole.Student
-                    && localUser.userUuid == streamInfo.owner.userUuid
-                    && operator?.role != AgoraEduContextUserRole.Student) {
+                if (localUser.role == AgoraEduContextUserRole.Student && localUser.userUuid == streamInfo.owner.userUuid && operator?.role != AgoraEduContextUserRole.Student) {
 
                     if (localStreamInfo?.videoState?.value != streamInfo.videoState.value) {//如果上一次的视频状态和本次的视频状态不一样
                         when (streamInfo.streamType) {
@@ -99,11 +113,9 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
 //                                    text = String.format(context.getString(R.string.fcr_stream_start_video))
 //                                )
                             }
+
                             AgoraEduContextMediaStreamType.Audio, AgoraEduContextMediaStreamType.None -> {
-                                AgoraUIToast.error(
-                                    applicationContext,
-                                    text = String.format(context.getString(R.string.fcr_switch_tips_banned_video))
-                                )
+                                AgoraUIToast.error(applicationContext, text = String.format(context.getString(R.string.fcr_switch_tips_banned_video)))
                             }
                         }
                     }
@@ -116,11 +128,9 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
 //                                    text = String.format(context.getString(R.string.fcr_stream_start_audio))
 //                                )
                             }
+
                             AgoraEduContextMediaStreamType.Video, AgoraEduContextMediaStreamType.None -> {
-                                AgoraUIToast.error(
-                                    applicationContext,
-                                    text = String.format(context.getString(R.string.fcr_switch_tips_muted))
-                                )
+                                AgoraUIToast.error(applicationContext, text = String.format(context.getString(R.string.fcr_switch_tips_muted)))
                             }
                         }
                     }
@@ -140,16 +150,16 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
                         AgoraEduContextSystemDevice.CameraBack
                     }
 
-                    FcrHandsUpManager.getDeviceState(eduCore(), device){
-                        if(it){
+                    FcrHandsUpManager.getDeviceState(eduCore(), device) {
+                        if (it) {
                             getEduContext()?.mediaContext()?.closeSystemDevice(device)
                         }
                     }
                 }
 
                 if (streamInfo.audioState == AgoraEduMediaState.Off) {
-                    FcrHandsUpManager.getDeviceState(eduCore(), AgoraEduContextSystemDevice.Microphone){
-                        if(it){
+                    FcrHandsUpManager.getDeviceState(eduCore(), AgoraEduContextSystemDevice.Microphone) {
+                        if (it) {
                             getEduContext()?.mediaContext()?.closeSystemDevice(AgoraEduContextSystemDevice.Microphone)
                         }
                     }
@@ -232,10 +242,7 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
         }
 
         if (connectionState == EduContextConnectionState.Aborted) {
-            AgoraUIToast.error(
-                applicationContext,
-                text = resources.getString(R.string.fcr_monitor_login_remote_device)
-            )
+            AgoraUIToast.error(applicationContext, text = resources.getString(R.string.fcr_monitor_login_remote_device))
             val roomUuid = eduCore()?.eduContextPool()?.roomContext()?.getRoomInfo()?.roomUuid
             FCRHandlerManager.roomHandlerMap.forEach {
                 if (roomUuid == it.key) {
@@ -272,13 +279,11 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
         eduCore()?.eduContextPool()?.mediaContext()?.openSystemDevice(AgoraEduContextSystemDevice.Speaker)
         eduCore()?.eduContextPool()?.userContext()?.getLocalUserInfo()?.let {
             if (it.role == AgoraEduContextUserRole.Teacher) {
-                eduCore()?.eduContextPool()?.mediaContext()?.openSystemDevice(
-                    if (AgoraUIDeviceSetting.isFrontCamera()) {
-                        AgoraEduContextSystemDevice.CameraFront
-                    } else {
-                        AgoraEduContextSystemDevice.CameraBack
-                    }
-                )
+                eduCore()?.eduContextPool()?.mediaContext()?.openSystemDevice(if (AgoraUIDeviceSetting.isFrontCamera()) {
+                    AgoraEduContextSystemDevice.CameraFront
+                } else {
+                    AgoraEduContextSystemDevice.CameraBack
+                })
                 eduCore()?.eduContextPool()?.mediaContext()?.openSystemDevice(AgoraEduContextSystemDevice.Microphone)
             } else {
                 eduCore()?.eduContextPool()?.mediaContext()?.closeSystemDevice(AgoraEduContextSystemDevice.CameraFront)
@@ -290,13 +295,11 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
 
     protected fun openSystemDevices() { // 打开语音，摄像头，麦克风
         eduCore()?.eduContextPool()?.mediaContext()?.openSystemDevice(AgoraEduContextSystemDevice.Speaker)
-        eduCore()?.eduContextPool()?.mediaContext()?.openSystemDevice(
-            if (AgoraUIDeviceSetting.isFrontCamera()) {
-                AgoraEduContextSystemDevice.CameraFront
-            } else {
-                AgoraEduContextSystemDevice.CameraBack
-            }
-        )
+        eduCore()?.eduContextPool()?.mediaContext()?.openSystemDevice(if (AgoraUIDeviceSetting.isFrontCamera()) {
+            AgoraEduContextSystemDevice.CameraFront
+        } else {
+            AgoraEduContextSystemDevice.CameraBack
+        })
         eduCore()?.eduContextPool()?.mediaContext()?.openSystemDevice(AgoraEduContextSystemDevice.Microphone)
     }
 
@@ -328,14 +331,10 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
      * 设置小流分辨率
      */
     fun setLowStream() {
-        val lowStream = String.format(
-            Locale.US,
-            "{\"che.video.lowBitRateStreamParameter\": {\"width\":%d,\"height\":%d,\"frameRate\":%d,\"bitRate\":%d}}",
-            FcrStreamParameters.LowStream.width,
-            FcrStreamParameters.LowStream.height,
-            FcrStreamParameters.LowStream.frameRate,
-            FcrStreamParameters.LowStream.bitRate
-        )
+        val lowStream =
+            String.format(Locale.US, "{\"che.video.lowBitRateStreamParameter\": {\"width\":%d,\"height\":%d,\"frameRate\":%d,\"bitRate\":%d}}",
+                FcrStreamParameters.LowStream.width, FcrStreamParameters.LowStream.height, FcrStreamParameters.LowStream.frameRate,
+                FcrStreamParameters.LowStream.bitRate)
         eduCore()?.eduContextPool()?.streamContext()?.setRtcParameters(lowStream)
         LogX.i(TAG, "joinRoom lowStream = $lowStream")
     }
@@ -355,6 +354,7 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
         super.finish()
         removeHandler()
     }
+
     override fun onRelease() {
         super.onRelease()
         removeHandler()
@@ -408,11 +408,12 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
         override fun onRemoteUserLeft(
             user: AgoraEduContextUserInfo,
             operator: AgoraEduContextUserInfo?,
-            reason: EduContextUserLeftReason
+            reason: EduContextUserLeftReason,
         ) {
             super.onRemoteUserLeft(user, operator, reason)
             //FcrHandsUpManager.remove(user.userUuid)
         }
+
         override fun onLocalUserKickedOut() {
             super.onLocalUserKickedOut()
             classManager?.showKickOut()
@@ -428,7 +429,7 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
             list: List<FcrUserPropertiesEvent>,
             batch: FcrEventBatch,
             cause: Map<String, Any>,
-            operator: AgoraEduContextUserInfo?
+            operator: AgoraEduContextUserInfo?,
         ) {
             super.onUserRewardedList(list, batch, cause, operator)
             ContextCompat.getMainExecutor(context).execute {
@@ -456,11 +457,8 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
                 }
             }
 
-            val tips = if (list.size > 3) String.format(
-                context.resources.getString(R.string.fcr_room_tips_reward_congratulation_multiplayer),
-                name,
-                "" + list.size
-            ) else String.format(context.resources.getString(R.string.fcr_room_tips_reward_congratulation_single), name)
+            val tips = if (list.size > 3) String.format(context.resources.getString(R.string.fcr_room_tips_reward_congratulation_multiplayer), name,
+                "" + list.size) else String.format(context.resources.getString(R.string.fcr_room_tips_reward_congratulation_single), name)
 
             return tips
         }
@@ -469,7 +467,7 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
         override fun onUserRewarded(
             user: AgoraEduContextUserInfo,
             rewardCount: Int,
-            operator: AgoraEduContextUserInfo?
+            operator: AgoraEduContextUserInfo?,
         ) {
             super.onUserRewarded(user, rewardCount, operator)
             ContextCompat.getMainExecutor(context).execute {
@@ -533,13 +531,8 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
                     releaseData()
                     finish()
                     // 欢迎加入{xxxx小组名}与大家互动讨论
-                    AgoraUIToast.info(
-                        applicationContext,
-                        text = String.format(
-                            context.resources.getString(R.string.fcr_group_enter_welcome),
-                            current.payload.groupName
-                        )
-                    )
+                    AgoraUIToast.info(applicationContext,
+                        text = String.format(context.resources.getString(R.string.fcr_group_enter_welcome), current.payload.groupName))
                 } else {
                     // 加入失败，重新加入
                     isSowGroupDialog = true
@@ -564,16 +557,13 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
             }
 
             if (!groupInfo.state && getRoomType() == RoomType.GROUPING_CLASS) {  // 关闭分组，直接返回大房间
-                if(!groupInfo.state){
+                if (!groupInfo.state) {
                     FcrGroupUserManager.clearGroupList()
                 }
                 ContextCompat.getMainExecutor(context).execute {
                     if (!isJoinMainRoom.get()) {
                         isJoinMainRoom.set(true)
-                        AgoraUIToast.info(
-                            applicationContext,
-                            text = resources.getString(R.string.fcr_group_back_main_room)
-                        )
+                        AgoraUIToast.info(applicationContext, text = resources.getString(R.string.fcr_group_back_main_room))
                         fullLoading.setContent(getString(R.string.fcr_group_back_main_room))
                         launchMainRoom()
                     }
@@ -590,10 +580,7 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
                     if (info.subRoomUuid == roomUuid) {
                         LogX.i(TAG, "Group 删除分组，返回到大房间")
                         classManager?.dismissJoinDialog()
-                        AgoraUIToast.info(
-                            applicationContext,
-                            text = resources.getString(R.string.fcr_group_back_main_room)
-                        )
+                        AgoraUIToast.info(applicationContext, text = resources.getString(R.string.fcr_group_back_main_room))
                         fullLoading.setContent(getString(R.string.fcr_group_back_main_room))
                         launchMainRoom()
                     }
@@ -642,21 +629,15 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
                                     // 切换到新的分组
                                     LogX.i(TAG, "Group 当前分组：$roomUuid , 切换到新的分组：${groupInfo.groupUuid}")
 
-                                    AgoraUIToast.info(
-                                        applicationContext,
-                                        text = String.format(
-                                            resources.getString(R.string.fcr_group_invitation),
-                                            groupInfo.groupName
-                                        )
-                                    )
+                                    AgoraUIToast.info(applicationContext,
+                                        text = String.format(resources.getString(R.string.fcr_group_invitation), groupInfo.groupName))
 
                                     isJoining.set(true)
                                     showFullDialog()
                                     classManager?.launchSubRoom(groupInfo, true) { code, state, groupUuid ->
                                         if (state == AgoraEduEvent.AgoraEduEventReady) {
                                             // 关闭当前分组的channel
-                                            eduCore()?.eduContextPool()?.roomContext()
-                                                ?.leaveRoom(object : EduContextCallback<Unit> {
+                                            eduCore()?.eduContextPool()?.roomContext()?.leaveRoom(object : EduContextCallback<Unit> {
                                                     override fun onSuccess(target: Unit?) {
                                                         releaseData()
                                                         finish()
@@ -745,13 +726,7 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
                 // 切换到新的分组
                 LogX.i(TAG, "Group 当前分组：$roomUuid , 切换到新的分组：${toSubRoomUuid}")
 
-                AgoraUIToast.info(
-                    applicationContext,
-                    text = String.format(
-                        resources.getString(R.string.fcr_group_invitation),
-                        groupInfo.groupName
-                    )
-                )
+                AgoraUIToast.info(applicationContext, text = String.format(resources.getString(R.string.fcr_group_invitation), groupInfo.groupName))
 
                 isJoining.set(true)
                 showFullDialog()
@@ -826,7 +801,7 @@ abstract class AgoraEduClassActivity : AgoraBaseClassActivity(), IAgoraUIProvide
         }
     }
 
-    open fun cancelHandsUp(){}
+    open fun cancelHandsUp() {}
 
     override fun getUIConfig(): FcrUIConfig {
         eduCore()?.config?.roomType?.let {
