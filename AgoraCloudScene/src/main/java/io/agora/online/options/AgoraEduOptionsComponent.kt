@@ -34,6 +34,7 @@ import io.agora.agoraeducore.extensions.widgets.bean.AgoraWidgetMessageObserver
 import io.agora.online.R
 import io.agora.online.component.AgoraEduChatComponent
 import io.agora.online.component.AgoraEduSettingComponent
+import io.agora.online.component.FcrRttToolBoxComponent
 import io.agora.online.component.common.AbsAgoraEduConfigComponent
 import io.agora.online.component.common.IAgoraUIProvider
 import io.agora.online.component.common.UIUtils
@@ -41,7 +42,6 @@ import io.agora.online.component.toast.AgoraUIToast
 import io.agora.online.component.whiteboard.data.AgoraEduApplianceData
 import io.agora.online.config.FcrUIConfig
 import io.agora.online.databinding.FcrOnlineEduOptionsComponentBinding
-import io.agora.online.helper.RttOptionsManager
 import io.agora.online.impl.chat.ChatPopupWidgetListener
 import io.agora.online.impl.whiteboard.bean.AgoraBoardGrantData
 import io.agora.online.impl.whiteboard.bean.AgoraBoardInteractionPacket
@@ -58,13 +58,13 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
     lateinit var uuid: String
     lateinit var rootContainer: ViewGroup  // 给IM用的,view root
     lateinit var itemContainer: ViewGroup  // 显示侧边栏
-    lateinit var rttOptionsManager: RttOptionsManager
 
     private var binding: FcrOnlineEduOptionsComponentBinding = FcrOnlineEduOptionsComponentBinding.inflate(LayoutInflater.from(context), this, true)
 
     private var agroSettingWidget: AgoraEduSettingComponent? = null
     private var popupViewRoster: AgoraEduRosterComponent? = null
     private var popupViewChat: AgoraEduChatComponent? = null
+    private var rttToolBoxWidget: FcrRttToolBoxComponent? = null
     private lateinit var optionPresenter: AgoraEduOptionPresenter
     var onExitListener: (() -> Unit)? = null // 退出
     private var isRequestHelp = false // 分组是否请求了帮助
@@ -76,14 +76,14 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
     }
 
     fun initView(
-        rttOptionsManager: RttOptionsManager, uuid: String, rootContainer: ViewGroup, itemContainer: ViewGroup,
+        uuid: String, rootContainer: ViewGroup, itemContainer: ViewGroup,
         agoraUIProvider: IAgoraUIProvider,
     ) {
         this.uuid = uuid
         this.itemContainer = itemContainer
         this.rootContainer = rootContainer
-        this.rttOptionsManager = rttOptionsManager
-        this.rttOptionsManager.setEduOptionsComponent(this)
+//        this.rttOptionsManager = rttOptionsManager
+//        this.rttOptionsManager.setEduOptionsComponent(this)
         initView(agoraUIProvider)
     }
 
@@ -155,8 +155,8 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
         binding.optionItemRtt.setOnClickListener {
             //LogX.e(TAG,">>>${eduContext?.userContext()?.getCoHostList()}")
             if (!it.isActivated) {
-                rttOptionsManager.resetEduRttToolBoxStatus()
-                showItem(rttOptionsManager.rttToolBoxWidget, R.dimen.agora_edu_options_rtt_dialog_w, R.dimen.agora_userlist_dialog_large_h)
+                rttToolBoxWidget!!.resetEduRttToolBoxStatus()
+                showItem(rttToolBoxWidget, R.dimen.agora_edu_options_rtt_dialog_w, R.dimen.agora_userlist_dialog_large_h)
                 setIconActivated(binding.optionItemRtt)
             } else {
                 hiddenItem()
@@ -415,9 +415,20 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
     }
 
     /**
+     * 初始化Rtt
+     */
+    fun initRtt(conversionStatusView: ViewGroup, subtitleView: AgoraEduRttOptionsComponent) {
+        //初始化聊天组件
+        if (rttToolBoxWidget == null) {
+            rttToolBoxWidget = FcrRttToolBoxComponent(context)
+            rttToolBoxWidget?.initView(agoraUIProvider,this, conversionStatusView, subtitleView)
+        }
+    }
+
+    /**
      * 隐藏rtt相关的
      */
-    fun hiddenRtt(){
+    fun hiddenRtt() {
         hiddenItem()
         binding.optionItemRtt.isActivated = false
     }
@@ -664,7 +675,7 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
         super.release()
         popupViewChat?.release()
         agroSettingWidget?.release()
-        rttOptionsManager.release()
+        rttToolBoxWidget?.release()
         popupViewRoster?.release()
         eduContext?.roomContext()?.removeHandler(roomHandler)
         eduContext?.userContext()?.removeHandler(userHandler)

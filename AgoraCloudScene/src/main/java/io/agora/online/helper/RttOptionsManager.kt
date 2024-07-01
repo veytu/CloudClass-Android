@@ -19,7 +19,6 @@ import io.agora.agoraeducore.core.internal.framework.impl.handler.UserHandler
 import io.agora.agoraeducore.core.internal.framework.utils.GsonUtil
 import io.agora.agoraeducore.core.internal.log.LogX
 import io.agora.online.R
-import io.agora.online.component.AgoraEduRttComponent
 import io.agora.online.component.common.IAgoraUIProvider
 import io.agora.online.component.dialog.AgoraUIRttConversionDialogBuilder
 import io.agora.online.component.dialog.AgoraUIRttSettingBuilder
@@ -70,12 +69,6 @@ import java.util.UUID
 class RttOptionsManager(internal val rttOptions: IRttOptions) {
 
     private val TAG = "RttOptionsManager:"
-
-    /**
-     * 字幕工具箱组件
-     */
-    var rttToolBoxWidget: AgoraEduRttComponent? = null
-        private set
 
     /**
      * 教室相关信息
@@ -239,9 +232,6 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
         conversionManager.rttTipLeftTopConversionStatusView = rttTipLeftTopStatus
         subtitlesManager.rttBottomCenterSubtitlesView = rttBottomCenterSubtitlesView
         subtitlesManager.rttBottomCenterSubtitlesView!!.initView(this)
-        //生成动态的工具箱显示组件
-        this.rttToolBoxWidget = AgoraEduRttComponent(rttOptions.getActivityContext())
-        this.rttToolBoxWidget!!.initView(this, agoraUIProvider)
         this.eduCore = agoraUIProvider.getAgoraEduCore()
         //重置视图
         this.setRttFunctionStatusConfig()
@@ -285,7 +275,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      */
     fun setRttFunctionStatusConfig(allowUse: Boolean = false) {
         useManager.configAllowUse = allowUse
-        this.rttToolBoxWidget?.setAllowUse(useManager.isAllowUse(), useManager.rttExperienceReduceTime)
+//        this.rttToolBoxWidget?.setAllowUse(useManager.isAllowUse(), useManager.rttExperienceReduceTime)
         if (!allowUse) {
             this.resetShow()
         }
@@ -295,7 +285,6 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * 释放相关
      */
     fun release() {
-        rttToolBoxWidget?.release()
         conversionManager.resetShow()
         subtitlesManager.resetShow()
         this.eduCore?.eduContextPool()?.streamContext()?.removeHandler(steamHandler)
@@ -382,10 +371,10 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     }
 
     /**
-     * 重置edu字幕工具箱
+     * 获取体验剩余时间
      */
-    fun resetEduRttToolBoxStatus() {
-        rttToolBoxWidget?.resetStatus(useManager.rttExperienceReduceTime)
+    fun getExperienceReduceTime(): Int {
+        return useManager.rttExperienceReduceTime;
     }
 
     /**
@@ -1389,3 +1378,90 @@ private interface SettingOptionsInterface {
 
 }
 
+/**
+ * Rtt操作状态监听
+ */
+abstract class FcrRttOptionsStatusListener {
+    /**
+     * rtt功能状态变更
+     * @param open 开启-true，关闭-false
+     */
+    open fun rttStateChange(open: Boolean) {}
+
+    /**
+     * 体验信息变更
+     * @param configAllowUseRtt 配置是否可以使用rtt功能
+     * @param experienceReduceTime 剩余体验时间
+     * @param experienceDefaultTime 默认体验时间
+     */
+    open fun experienceInfoChange(configAllowUseRtt: Boolean, experienceDefaultTime: Int, experienceReduceTime: Int) {}
+
+    /**
+     * 字幕状态变更
+     * @param toOpen 开启-true，关闭-false
+     * @param configAllowUseRtt 配置是否可以使用rtt功能
+     * @param experienceReduceTime 剩余体验时间
+     * @param experienceDefaultTime 默认体验时间
+     */
+    open fun subtitlesStateChange(toOpen: Boolean, configAllowUseRtt: Boolean, experienceDefaultTime: Int, experienceReduceTime: Int) {}
+
+    /**
+     * 字幕状态变更-网络请求结果
+     * @param open 开启-true，关闭-false
+     */
+    open fun subtitlesStateChangeNetResult(open: Boolean) {}
+
+    /**
+     * 转写状态变更
+     * @param toOpen 开启-true，关闭-false
+     * @param configAllowUseRtt 配置是否可以使用rtt功能
+     * @param experienceReduceTime 剩余体验时间
+     * @param experienceDefaultTime 默认体验时间
+     */
+    open fun conversionStateChange(toOpen: Boolean, configAllowUseRtt: Boolean, experienceDefaultTime: Int, experienceReduceTime: Int) {}
+
+    /**
+     * 转写状态变更-网络请求结果
+     * @param open 开启-true，关闭-false
+     */
+    open fun conversionStateChangeNetResult(open: Boolean) {}
+
+    /**
+     * 声源语言修改
+     */
+    open fun sourceLanguageChange(language: RttLanguageEnum) {}
+
+    /**
+     * 声源语言修改-网络请求结果
+     */
+    open fun sourceLanguageChangeNetResult(language: RttLanguageEnum) {}
+
+    /**
+     * 目标语言修改-网络请求结果
+     */
+    open fun targetLanguageChange(languages: List<RttLanguageEnum>) {}
+
+    /**
+     * 目标语言修改
+     */
+    open fun targetLanguageChangeNetResult(languages: List<RttLanguageEnum>) {}
+
+    /**
+     * 双语状态变更
+     * @param open 开启-true，关闭-false
+     */
+    open fun showDoubleLanguage(open: Boolean) {}
+
+    /**
+     * 双语状态变更-网络请求结果
+     * @param open 开启-true，关闭-false
+     */
+    open fun showDoubleLanguageNetResult(open: Boolean) {}
+
+    /**
+     * 消息改变
+     * @param recordList 消息记录数据
+     * @param currentData 当前要显示的数据
+     */
+    open fun onMessageChange(recordList: List<RttRecordItem>, currentData: RttRecordItem?) {}
+}
