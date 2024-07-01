@@ -30,7 +30,7 @@ import io.agora.online.easeim.utils.TAG
 import io.agora.online.options.AgoraEduOptionsComponent
 import io.agora.online.options.AgoraEduRttOptionsComponent
 import io.agora.online.util.MultiLanguageUtil
-import io.agora.rtc.audio2text.Audio2TextProtobuffer
+import io.agora.rtc.speech2text.AgoraSpeech2TextProtobuffer
 import retrofit2.Call
 import retrofit2.http.Body
 import retrofit2.http.Headers
@@ -178,7 +178,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     private val steamHandler = object : StreamHandler() {
         override fun onStreamMessage(channelId: String, streamId: Int, data: ByteArray?) {
             super.onStreamMessage(channelId, streamId, data)
-            val parseFrom = Audio2TextProtobuffer.Text.parseFrom(data)
+            val parseFrom = AgoraSpeech2TextProtobuffer.Text.parseFrom(data)
             val recordItem = useManager.disposeData(parseFrom, settingsManager.currentSettingInfo, eduCore?.eduContextPool()?.streamContext())
             subtitlesManager.setShowCurrentData(recordItem, settingsManager.currentSettingInfo)
             conversionManager.updateShowList(useManager.getRecordList())
@@ -570,7 +570,7 @@ class RttRecordItem {
     /**
      * 转写内容对应的Rtc uid
      */
-    var uid: Int? = null
+    var uid: Long? = null
 
     /**
      * 说话的用户昵称
@@ -1243,7 +1243,7 @@ private class RttUseManager(
     /**
      * 处理数据
      */
-    fun disposeData(rttMsgData: Audio2TextProtobuffer.Text, settingInfo: RttSettingInfo, streamContext: StreamContext?): RttRecordItem? {
+    fun disposeData(rttMsgData: AgoraSpeech2TextProtobuffer.Text, settingInfo: RttSettingInfo, streamContext: StreamContext?): RttRecordItem? {
         val lastItem = (if (recordList.isEmpty()) null else recordList[recordList.size - 1])
         val lastItemByUid = lastItem?.uid
         var paramsData: RttRecordItem? = null
