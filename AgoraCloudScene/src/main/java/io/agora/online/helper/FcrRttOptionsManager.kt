@@ -3,9 +3,11 @@ package io.agora.online.helper
 import android.content.Context
 import android.os.Handler
 import android.os.Message
-import android.view.View
-import android.view.ViewGroup
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.style.ForegroundColorSpan
 import androidx.annotation.StringRes
+import androidx.core.content.ContextCompat
 import io.agora.agoraeducore.core.AgoraEduCore
 import io.agora.agoraeducore.core.context.AgoraEduContextUserInfo
 import io.agora.agoraeducore.core.context.EduContextUserLeftReason
@@ -13,6 +15,8 @@ import io.agora.agoraeducore.core.context.StreamContext
 import io.agora.agoraeducore.core.internal.base.http.AppRetrofitManager
 import io.agora.agoraeducore.core.internal.education.impl.network.HttpBaseRes
 import io.agora.agoraeducore.core.internal.education.impl.network.HttpCallback
+import io.agora.agoraeducore.core.internal.framework.data.EduBaseUserInfo
+import io.agora.agoraeducore.core.internal.framework.data.EduUserRole
 import io.agora.agoraeducore.core.internal.framework.impl.handler.RoomHandler
 import io.agora.agoraeducore.core.internal.framework.impl.handler.StreamHandler
 import io.agora.agoraeducore.core.internal.framework.impl.handler.UserHandler
@@ -26,8 +30,6 @@ import io.agora.online.component.dialog.AgoraUIRttSettingDialogListener
 import io.agora.online.component.dialog.ConversionOptionsInterface
 import io.agora.online.component.toast.AgoraUIToast
 import io.agora.online.easeim.utils.TAG
-import io.agora.online.options.AgoraEduOptionsComponent
-import io.agora.online.options.AgoraEduRttOptionsComponent
 import io.agora.online.util.MultiLanguageUtil
 import io.agora.rtc.speech2text.AgoraSpeech2TextProtobuffer
 import retrofit2.Call
@@ -67,7 +69,6 @@ import java.util.UUID
  * @author 王亮（Loren）
  */
 class RttOptionsManager(internal val rttOptions: IRttOptions) {
-
     private val TAG = "RttOptionsManager:"
 
     /**
@@ -75,95 +76,29 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      */
     private var eduCore: AgoraEduCore? = null
 
+    private val listenerList = arrayListOf<FcrRttOptionsStatusListener>()
+
     /**
      * 转写管理
      */
     private val conversionManager by lazy {
-        RttConversionManager(this, object : ConversionOptionsInterface {
-            /**
-             * 开启转写
-             */
-            override fun openConversion() {
-                if (!isOpenSubtitles()) {
-                    useManager.startExperience()
-                }
-            }
-
-            /**
-             * 关闭转写
-             */
-            override fun closeConversion() {
-                if (!isOpenSubtitles()) {
-                    useManager.stopExperience()
-                }
-            }
-
-            /**
-             * 打开设置页面
-             */
-            override fun openSetting() {
-                if (!isOpenSubtitles()) {
-                    openSetting()
-                }
-            }
-        })
+        RttConversionManager(this, this.getManagerListener())
     }
 
     /**
      * 字幕管理
      */
-    private val subtitlesManager by lazy {
-        RttSubtitlesManager(this, object : SubtitlesOptionsInterface {
-            override fun open() {
-                if (!isOpenConversion()) {
-                    useManager.startExperience()
-                }
-            }
-
-            override fun close() {
-                if (!isOpenConversion()) {
-                    useManager.stopExperience()
-                }
-            }
-        })
-    }
+    private val subtitlesManager by lazy { RttSubtitlesManager(this, getManagerListener()) }
 
     /**
      * 设置管理
      */
-    private val settingsManager by lazy {
-        RttSettingManager(this, object : SettingOptionsInterface {})
-    }
+    private val settingsManager by lazy { RttSettingManager(this) }
 
     /**
      * 使用管理
      */
-    private val useManager by lazy {
-        RttUseManager(this, false, object : ExperienceOptionsInterface {
-            /**
-             * 当前倒计时信息
-             * @param configAllowUse 配置是否允许使用rtt
-             * @param defTime 默认体验时间
-             * @param reduceTime 体验剩余时间
-             */
-            override fun countDownCurrent(configAllowUse: Boolean, defTime: Int, reduceTime: Int) {
-                setExperienceInfo(configAllowUse, defTime, reduceTime)
-            }
-
-            /**
-             * 结束体验
-             */
-            override fun stop() {
-                setShowStatusInfo(showProgress = false, showIcon = false,
-                    text = rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_time_limit_status_not_allow_use))
-            }
-        })
-    }
-
-    /**
-     * 父布局工具视图
-     */
-    private var agoraEduOptionsComponent: AgoraEduOptionsComponent? = null
+    private val useManager by lazy { RttUseManager(this, false, getManagerListener()) }
 
     /**
      * 流回调监听
@@ -173,7 +108,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
             super.onStreamMessage(channelId, streamId, data)
             val parseFrom = AgoraSpeech2TextProtobuffer.Text.parseFrom(data)
             val recordItem = useManager.disposeData(parseFrom, settingsManager.currentSettingInfo, eduCore?.eduContextPool()?.streamContext())
-            subtitlesManager.setShowCurrentData(recordItem, settingsManager.currentSettingInfo)
+            subtitlesManager.setShowCurrentData(useManager.getRecordList(), recordItem, settingsManager.currentSettingInfo)
             conversionManager.updateShowList(useManager.getRecordList())
             LogX.i(TAG, "onStreamMessage channelId=$channelId, streamId=$streamId, data=${GsonUtil.toJson(parseFrom)}")
 
@@ -223,15 +158,165 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     }
 
     /**
+     * 获取管理器监听
+     */
+    private fun getManagerListener(): FcrRttOptionsStatusListener {
+        return object : FcrRttOptionsStatusListener() {
+            /**
+             * rtt功能状态变更
+             * @param open 开启-true，关闭-false
+             */
+            override fun rttStateChange(open: Boolean) {
+                listenerList.forEach { it.rttStateChange(open) }
+            }
+
+            /**
+             * 音频状态-无人讲话
+             */
+            override fun audioStateNoSpeaking() {
+                listenerList.forEach { it.audioStateNoSpeaking() }
+            }
+
+            /**
+             * 音频状态-有人讲话
+             */
+            override fun audioStateSpeaking() {
+                listenerList.forEach { it.audioStateSpeaking() }
+            }
+
+            /**
+             * 音频状态-超过一定时间无人讲话
+             */
+            override fun audioStateNoSpeakingMoreTime() {
+                listenerList.forEach { it.audioStateNoSpeakingMoreTime() }
+            }
+
+            /**
+             * 音频状态-开启中
+             */
+            override fun audioStateOpening() {
+                listenerList.forEach { it.audioStateOpening() }
+            }
+
+            /**
+             * 音频状态-无法使用
+             */
+            override fun audioStateNotAllowUse() {
+                listenerList.forEach { it.audioStateNotAllowUse() }
+            }
+
+            /**
+             * 音频状态-显示设置提示
+             */
+            override fun audioStateShowSettingHint() {
+                listenerList.forEach { it.audioStateShowSettingHint() }
+            }
+
+            /**
+             * 体验信息变更
+             * @param configAllowUseRtt 配置是否可以使用rtt功能
+             * @param experienceReduceTime 剩余体验时间
+             * @param experienceDefaultTime 默认体验时间
+             */
+            override fun experienceInfoChange(configAllowUseRtt: Boolean, experienceDefaultTime: Int, experienceReduceTime: Int) {
+                conversionManager.setExperienceInfo(configAllowUseRtt, experienceReduceTime)
+                listenerList.forEach { it.experienceInfoChange(configAllowUseRtt, experienceDefaultTime, experienceReduceTime) }
+            }
+
+            /**
+             * 字幕状态变更
+             * @param toOpen 开启-true，关闭-false
+             */
+            override fun subtitlesStateChange(toOpen: Boolean) {
+                listenerList.forEach { it.subtitlesStateChange(toOpen) }
+            }
+
+            /**
+             * 字幕视图重置
+             */
+            override fun subtitlesViewReset(openSuccess: Boolean) {
+                listenerList.forEach { it.subtitlesViewReset(openSuccess) }
+            }
+
+            /**
+             * 转写状态变更
+             * @param toOpen 开启-true，关闭-false
+             */
+            override fun conversionStateChange(toOpen: Boolean) {
+                listenerList.forEach { it.conversionStateChange(toOpen) }
+            }
+
+            /**
+             * 转写视图重置
+             */
+            override fun conversionViewReset() {
+                listenerList.forEach { it.conversionViewReset() }
+            }
+
+            /**
+             * 声源语言修改
+             */
+            override fun sourceLanguageChange(language: RttLanguageEnum) {
+                listenerList.forEach { it.sourceLanguageChange(language) }
+            }
+
+            /**
+             * 目标语言修改-网络请求结果
+             */
+            override fun targetLanguageChange(languages: List<RttLanguageEnum>) {
+                listenerList.forEach { it.targetLanguageChange(languages) }
+            }
+
+            /**
+             * 双语状态变更
+             * @param open 开启-true，关闭-false
+             */
+            override fun showDoubleLanguage(open: Boolean) {
+                listenerList.forEach { it.showDoubleLanguage(open) }
+            }
+
+            /**
+             * 双语状态变更-网络请求结果
+             * @param open 开启-true，关闭-false
+             */
+            override fun showDoubleLanguageNetResult(open: Boolean) {
+                listenerList.forEach { it.showDoubleLanguageNetResult(open) }
+            }
+
+            /**
+             * 消息改变
+             * @param recordList 消息记录数据
+             * @param currentData 当前要显示的数据
+             */
+            override fun onMessageChange(recordList: List<RttRecordItem>, currentData: RttRecordItem?) {
+                listenerList.forEach { it.onMessageChange(recordList, currentData) }
+            }
+        }
+    }
+
+    /**
+     * 新增监听
+     */
+    fun addListener(listener: FcrRttOptionsStatusListener) {
+        if (!listenerList.contains(listener)) {
+            listenerList.add(listener)
+        }
+    }
+
+    /**
+     * 移除监听
+     */
+    fun removeListener(listener: FcrRttOptionsStatusListener) {
+        if (listenerList.contains(listener)) {
+            listenerList.remove(listener)
+        }
+    }
+
+    /**
      * 初始化视图
-     * @param rttTipLeftTopStatus 左上角撰写中提示控件（布局内部组件）
-     * @param rttBottomCenterSubtitlesView 底部中间的字幕显示控件（布局内部组件）
      * @param agoraUIProvider UI配置信息
      */
-    fun initView(rttTipLeftTopStatus: ViewGroup, rttBottomCenterSubtitlesView: AgoraEduRttOptionsComponent, agoraUIProvider: IAgoraUIProvider) {
-        conversionManager.rttTipLeftTopConversionStatusView = rttTipLeftTopStatus
-        subtitlesManager.rttBottomCenterSubtitlesView = rttBottomCenterSubtitlesView
-        subtitlesManager.rttBottomCenterSubtitlesView!!.initView(this)
+    fun initView(agoraUIProvider: IAgoraUIProvider) {
         this.eduCore = agoraUIProvider.getAgoraEduCore()
         //重置视图
         this.setRttFunctionStatusConfig()
@@ -263,19 +348,11 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     }
 
     /**
-     * 设置工具view的组件
-     */
-    fun setEduOptionsComponent(agoraEduOptionsComponent: AgoraEduOptionsComponent) {
-        this.agoraEduOptionsComponent = agoraEduOptionsComponent
-    }
-
-    /**
      * 设置RTT功能状态配置
      * @param allowUse 是否允许使用rtt功能，不可使用的话则提供体验时间
      */
-    fun setRttFunctionStatusConfig(allowUse: Boolean = false) {
+    private fun setRttFunctionStatusConfig(allowUse: Boolean = false) {
         useManager.configAllowUse = allowUse
-//        this.rttToolBoxWidget?.setAllowUse(useManager.isAllowUse(), useManager.rttExperienceReduceTime)
         if (!allowUse) {
             this.resetShow()
         }
@@ -285,18 +362,17 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * 释放相关
      */
     fun release() {
-        conversionManager.resetShow()
-        subtitlesManager.resetShow()
+        listenerList.forEach { it.conversionViewReset();it.subtitlesViewReset(false) }
         this.eduCore?.eduContextPool()?.streamContext()?.removeHandler(steamHandler)
         this.eduCore?.eduContextPool()?.roomContext()?.removeHandler(roomHandler)
         this.eduCore?.eduContextPool()?.userContext()?.removeHandler(userHandler)
+        listenerList.clear()
     }
 
     /**
      * 开启字幕
      */
     fun openSubtitles() {
-        this.agoraEduOptionsComponent?.hiddenRtt()
         subtitlesManager.openSubtitles(useManager.configAllowUse, useManager.rttExperienceDefaultTime, useManager.rttExperienceReduceTime)
     }
 
@@ -304,7 +380,6 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * 关闭字幕
      */
     fun closeSubtitles() {
-        this.agoraEduOptionsComponent?.hiddenRtt()
         subtitlesManager.closeSubtitles()
     }
 
@@ -312,7 +387,6 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * 开启转写
      */
     fun openConversion() {
-        this.agoraEduOptionsComponent?.hiddenRtt()
         conversionManager.openConversion(useManager.getRecordList())
     }
 
@@ -320,7 +394,6 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * 关闭转写
      */
     fun closeConversion() {
-        this.agoraEduOptionsComponent?.hiddenRtt()
         conversionManager.closeConversion()
     }
 
@@ -335,8 +408,21 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * 关闭设置
      */
     fun closeSetting() {
-        this.agoraEduOptionsComponent?.hiddenRtt()
         this.settingsManager.closeSetting()
+    }
+
+    /**
+     * 开启体验
+     */
+    fun startExperience() {
+        this.useManager.startExperience()
+    }
+
+    /**
+     * 关闭体验
+     */
+    fun stopExperience() {
+        this.useManager.stopExperience()
     }
 
     /**
@@ -347,6 +433,10 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
         sendRequest(isOpenConversion() || isOpenSubtitles(), isOpenSubtitles(), object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
             override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                 useManager.setLastFinal()
+            }
+
+            override fun onError(httpCode: Int, code: Int, message: String?) {
+                super.onError(httpCode, code, message)
             }
         })
     }
@@ -374,7 +464,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * 获取体验剩余时间
      */
     fun getExperienceReduceTime(): Int {
-        return useManager.rttExperienceReduceTime;
+        return useManager.rttExperienceReduceTime
     }
 
     /**
@@ -401,7 +491,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * @param openRttSubtitles 是否开启字幕
      */
     internal fun sendRequest(openRtt: Boolean, openRttSubtitles: Boolean, callback: HttpCallback<HttpBaseRes<RttChangeOptionsRes>>? = null) {
-        val body = RttChangeOptionsBody(openRttSubtitles, settingsManager.currentSettingInfo.sourceLan.value,
+        val body = FcrRttChangeOptionsData.formatUseData(openRtt, openRttSubtitles, settingsManager.currentSettingInfo.sourceLan.value,
             settingsManager.currentSettingInfo.targetLan.map { it.value }.toTypedArray())
         val call = AppRetrofitManager.instance().getService(IRttOptionsService::class.java)
             .buildTokens(eduCore?.config?.appId, eduCore?.config?.roomUuid, if (openRtt) 1 else 0, body)
@@ -412,6 +502,11 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
             }
 
             override fun onError(httpCode: Int, code: Int, message: String?) {
+                if (httpCode == 409) {
+                    //已经开始了转写翻译任务
+                    callback?.onSuccess(null)
+                    return
+                }
                 callback?.onError(httpCode, code, message)
             }
         })
@@ -421,26 +516,108 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * 重置显示
      */
     private fun resetShow() {
-        conversionManager.resetShow()
-        subtitlesManager.resetShow()
-        this.agoraEduOptionsComponent?.hiddenRtt()
+        listenerList.forEach { it.conversionViewReset();it.subtitlesViewReset(false) }
     }
 
     /**
-     * 设置状态信息
+     * 房间widget属性更新
      */
-    private fun setShowStatusInfo(showProgress: Boolean, showIcon: Boolean, text: String) {
-        subtitlesManager.setShowStatusInfo(showProgress, showIcon, text)
+    fun onWidgetRoomPropertiesUpdated(properties: MutableMap<String, Any>, operator: EduBaseUserInfo?) {
+        if ("server" != operator?.userUuid) {
+            GsonUtil.jsonToObject<FcrRttChangeOptionsData>(GsonUtil.toJson(properties))?.let {
+                operator?.let { userInfo ->
+                    val localUserInfo = eduCore?.eduContextPool()?.userContext()?.getLocalUserInfo()
+                    //判断是否改变了转写状态
+                    if (checkUpdateConversion(it)) {
+                        val toOpen = 1 == it.transcribe
+                        val textContent = "${formatRoleName(userInfo, localUserInfo)}${
+                            rttOptions.getApplicationContext().getString(
+                                if (toOpen) R.string.fcr_dialog_rtt_text_conversion_state_open else R.string.fcr_dialog_rtt_text_conversion_state_close)
+                        }"
+                        val toastContent = "${formatRoleName(userInfo, localUserInfo)}${
+                            rttOptions.getApplicationContext().getString(if (userInfo.userUuid == localUserInfo?.userUuid) {
+                                if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open_me_show else R.string.fcr_dialog_rtt_toast_conversion_state_close_me_show
+                            } else {
+                                if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open else R.string.fcr_dialog_rtt_toast_conversion_state_close
+                            })
+                        }"
+                        AgoraUIToast.showDefaultToast(rttOptions.getApplicationContext(), toastContent)
+                        useManager.disposeDataChangeSourceLanguage(userInfo, textContent)
+                        conversionManager.updateShowList(useManager.getRecordList())
+                        LogX.i(TAG, "changeConversionState result=$textContent}")
+                    }
+                    //判断是否开启了翻译
+                    if (!it.languages?.target.isNullOrEmpty() && settingsManager.lastRecordWidgetInfo?.languages?.target.isNullOrEmpty()) {
+                        val showContent = rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_text_open_target_language)
+                        useManager.disposeDataChangeSourceLanguage(userInfo, showContent)
+                        conversionManager.updateShowList(useManager.getRecordList())
+                        LogX.i(TAG, "changeToOpenTargetLanguage result=$showContent}")
+                    }
+                    //判断是否修改了声源语言
+                    if (!it.languages?.source.isNullOrEmpty() && it.languages?.source != settingsManager.lastRecordWidgetInfo?.languages?.source) {
+                        val sourceEnum = RttLanguageEnum.values().find { item -> item.value == it.languages?.source }
+                        if (sourceEnum != null) {
+                            //前置名称
+                            val useText = "${
+                                formatRoleName(userInfo, eduCore?.eduContextPool()?.userContext()?.getLocalUserInfo())
+                            }${rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_text_change_source_language)}"
+                            val languageText = rttOptions.getApplicationContext().getString(sourceEnum.textRes)
+                            val showContent = SpannableString("$useText${languageText}")
+                            showContent.setSpan(
+                                ForegroundColorSpan(ContextCompat.getColor(rttOptions.getApplicationContext(), R.color.fcr_blue_4262)),
+                                showContent.lastIndexOf(languageText), showContent.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+                            AgoraUIToast.showDefaultToast(rttOptions.getApplicationContext(), showContent)
+                            //通知处理
+                            useManager.disposeDataChangeSourceLanguage(userInfo, showContent.toString())
+                            conversionManager.updateShowList(useManager.getRecordList())
+                            LogX.i(TAG, "changeSourceLanguage source=${settingsManager.currentSettingInfo.sourceLan}, result=$sourceEnum}")
+                        }
+                    }
+                }
+
+                settingsManager.lastRecordWidgetInfo = it
+            }
+        }
     }
 
     /**
-     * 设置体验信息
+     * 检测是否更新了转写状态
      */
-    private fun setExperienceInfo(configAllowUse: Boolean, defTime: Int, reduceTime: Int) {
-        subtitlesManager.setExperienceInfo(configAllowUse, defTime, reduceTime)
-        conversionManager.setExperienceInfo(configAllowUse, reduceTime)
+    private fun checkUpdateConversion(it: FcrRttChangeOptionsData): Boolean {
+        if (1 == it.transcribe) {
+            if (settingsManager.lastRecordWidgetInfo == null || 0 == settingsManager.lastRecordWidgetInfo?.transcribe) {
+                return true
+            }
+        } else if (0 == it.transcribe) {
+            if (settingsManager.lastRecordWidgetInfo == null || 1 == settingsManager.lastRecordWidgetInfo?.transcribe) {
+                return true
+            }
+        }
+        return false
     }
 
+    /**
+     * 格式化名称角色显示
+     * @param optionsUser 发起设置修改的用户信息
+     * @param localUser 当前本地的用户信息
+     */
+    private fun formatRoleName(optionsUser: EduBaseUserInfo, localUser: AgoraEduContextUserInfo?): String {
+        return "${
+            if (EduUserRole.STUDENT == optionsUser.role) {
+                rttOptions.getApplicationContext().getString(R.string.fcr_role_student)
+            } else if (EduUserRole.TEACHER == optionsUser.role) {
+                rttOptions.getApplicationContext().getString(R.string.fcr_role_teacher)
+            } else {
+                ""
+            }
+        }(${
+            if (optionsUser.userUuid == localUser?.userUuid) {
+                rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_text_role_me)
+            } else {
+                optionsUser.userName
+            }
+        }) "
+    }
 }
 
 /**
@@ -605,7 +782,6 @@ class RttRecordItem {
  * @param sourceLan 转换的源语言
  * @param targetLan 转换的目标语言
  * @param showDoubleLan 是否显示双语
- * @param rttTranslatorsRecordList 转换数据记录
  */
 class RttSettingInfo(
     rttOptionsManager: RttOptionsManager,
@@ -758,42 +934,41 @@ private interface IRttOptionsService {
     @PUT("edu/apps/{appId}/v2/rooms/{roomId}/widgets/rtt/states/{state}")
     fun buildTokens(
         @Path("appId") appId: String?, @Path("roomId") roomId: String?, @Path("state") state: Int?,
-        @Body body: RttChangeOptionsBody,
+        @Body body: FcrRttChangeOptionsData,
     ): Call<HttpBaseRes<RttChangeOptionsRes>>
 }
 
 /**
  * 修改RTT配置操作请求实体
  */
-private class RttChangeOptionsBody(
-    openSubtitle: Boolean, sourceLan: String,
-    targetLan: Array<String>,
-) {
+private data class FcrRttChangeOptionsData(
     /**
      * 语言配置
      */
-    val languages = RttChangOptionsLanguage(sourceLan, targetLan)
-
-    /**
-     * 是否开启翻译
-     */
-    val transcribe: Int = if (targetLan.isNotEmpty()) 1 else 0
+    var languages: RttChangOptionsLanguage? = null,
 
     /**
      * 是否开启转写
      */
-    val subtitle: Int = if (openSubtitle) 1 else 0
+    var transcribe: Int = 0,
+
+    /**
+     * 是否开启字幕
+     */
+    var subtitle: Int = 0,
+) {
+    companion object {
+        fun formatUseData(openRtt: Boolean, openSubtitle: Boolean, sourceLan: String, targetLan: Array<String>): FcrRttChangeOptionsData {
+            return FcrRttChangeOptionsData(RttChangOptionsLanguage(sourceLan, targetLan), if (targetLan.isNotEmpty() && openRtt) 1 else 0,
+                if (openSubtitle && openRtt) 1 else 0)
+        }
+    }
 }
 
 /**
  * Rtt-字幕逻辑管理
  */
-private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManager, private val optionsCallback: SubtitlesOptionsInterface) {
-
-    /**
-     * 字幕组件
-     */
-    var rttBottomCenterSubtitlesView: AgoraEduRttOptionsComponent? = null
+private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManager, private val listener: FcrRttOptionsStatusListener) {
 
     /**
      * 是否开启成功
@@ -818,25 +993,15 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
             super.handleMessage(msg)
             when (msg.what) {
                 messageWhatOpenSuccess -> {
-                    setShowStatusInfo(showProgress = false, showIcon = false,
-                        text = rttOptionsManager.rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_subtitles_text_no_one_speaking))
+                    listener.audioStateNoSpeaking()
                     openSuccess = true
-                    optionsCallback.open()
+                    listener.subtitlesStateChange(true)
                 }
 
                 messageWhatNoSpeaking -> {
-                    changeEduOptionsComponent(View.GONE)
+                    listener.audioStateNoSpeakingMoreTime()
                 }
             }
-        }
-    }
-
-    /**
-     * 修改字幕显示状态
-     */
-    private fun changeEduOptionsComponent(toView: Int) {
-        rttOptionsManager.rttOptions.runOnUiThread {
-            this.rttBottomCenterSubtitlesView?.visibility = toView
         }
     }
 
@@ -847,31 +1012,32 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
      * @param experienceReduceTime 体验剩余时间
      */
     fun openSubtitles(configAllowUse: Boolean, experienceDefaultTime: Int, experienceReduceTime: Int) {
-        changeEduOptionsComponent(View.VISIBLE)
+        listener.subtitlesViewReset(true)
         if (rttOptionsManager.isAllowUseRtt()) {
             //可以使用的话先隐藏体验，后续再根据条件判断是否显示
-            setExperienceInfo(true, 0, 0)
+            listener.experienceInfoChange(configAllowUse, experienceDefaultTime, experienceReduceTime)
             //显示文案
-            setShowStatusInfo(showProgress = true, showIcon = false,
-                text = rttOptionsManager.rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_dialog_subtitles_status_opening))
+            listener.audioStateOpening()
             //发起开启rtt请求
             rttOptionsManager.sendRequest(openRtt = true, openRttSubtitles = true,
                 callback = object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
                     override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
-                        subtitlesOpenSuccess()
+                        //延迟两秒开启文案：点击字幕位置可以更改字幕设置
+                        listener.audioStateShowSettingHint()
+                        rttOptionsManager.startExperience()
+                        handler.sendEmptyMessageDelayed(messageWhatOpenSuccess, 2000)
                     }
 
                     override fun onError(httpCode: Int, code: Int, message: String?) {
                         openSuccess = false
-                        optionsCallback.close()
+                        listener.subtitlesStateChange(false)
                     }
                 })
         } else {
-            setExperienceInfo(configAllowUse, experienceDefaultTime, experienceReduceTime)
-            setShowStatusInfo(showProgress = false, showIcon = false,
-                text = rttOptionsManager.rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_time_limit_status_not_allow_use))
+            listener.experienceInfoChange(configAllowUse, experienceDefaultTime, experienceReduceTime)
+            listener.audioStateNotAllowUse()
             openSuccess = false
-            optionsCallback.close()
+            listener.subtitlesStateChange(false)
         }
     }
 
@@ -880,24 +1046,20 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
      */
     fun closeSubtitles() {
         openSuccess = false
-        this.resetShow()
+        listener.subtitlesViewReset(false)
         //发起开启rtt请求
         rttOptionsManager.sendRequest(rttOptionsManager.isOpenConversion(), false, object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
             override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                 openSuccess = false
-                optionsCallback.close()
+                listener.subtitlesStateChange(false)
+                if (!rttOptionsManager.isOpenConversion()) {
+                    rttOptionsManager.stopExperience()
+                }
             }
 
             override fun onError(httpCode: Int, code: Int, message: String?) {
             }
         })
-    }
-
-    /**
-     * 重置显示
-     */
-    fun resetShow() {
-        this.changeEduOptionsComponent(View.GONE)
     }
 
     /**
@@ -908,35 +1070,11 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
     }
 
     /**
-     * 设置体验信息
-     */
-    fun setExperienceInfo(allowUseConfig: Boolean, rttExperienceDefaultTime: Int, rttExperienceReduceTime: Int) {
-        rttBottomCenterSubtitlesView?.setExperienceInfo(allowUseConfig, rttExperienceDefaultTime, rttExperienceReduceTime)
-    }
-
-    /**
-     * 设置状态细心
-     */
-    fun setShowStatusInfo(showProgress: Boolean, showIcon: Boolean, text: String) {
-        rttBottomCenterSubtitlesView?.setShowStatusInfo(showProgress = showProgress, showIcon = showIcon, text = text)
-    }
-
-    /**
-     * 字幕开启成功
-     */
-    private fun subtitlesOpenSuccess() {
-        //延迟两秒开启文案：点击字幕位置可以更改字幕设置
-        setShowStatusInfo(showProgress = false, showIcon = false, text = rttOptionsManager.rttOptions.getApplicationContext()
-            .getString(R.string.fcr_dialog_rtt_dialog_subtitles_status_opening_success_hint))
-        handler.sendEmptyMessageDelayed(messageWhatOpenSuccess, 2000)
-    }
-
-    /**
      * 设置当前翻译数据
      */
-    fun setShowCurrentData(recordItem: RttRecordItem?, currentSettingInfo: RttSettingInfo) {
+    fun setShowCurrentData(recordList: List<RttRecordItem>, recordItem: RttRecordItem?, currentSettingInfo: RttSettingInfo) {
         if (isOpenSubtitles()) {
-            changeEduOptionsComponent(View.VISIBLE)
+            listener.subtitlesViewReset(true)
             handler.removeMessages(messageWhatOpenSuccess)
             handler.removeMessages(messageWhatNoSpeaking)
 
@@ -947,14 +1085,13 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
             val translating = targetText.isNullOrEmpty() && showTranslateOnly
 
             if (sourceText.isNullOrEmpty() && !translating) {
-                setShowStatusInfo(showProgress = false, showIcon = false,
-                    text = rttOptionsManager.rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_subtitles_text_no_one_speaking))
+                listener.audioStateNoSpeaking()
             } else if (translating) {
-                setShowStatusInfo(showProgress = false, showIcon = true,
-                    text = rttOptionsManager.rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_subtitles_text_listening))
+                listener.audioStateSpeaking()
             } else {
-                rttBottomCenterSubtitlesView?.setShowTranslatorsInfo(recordItem?.userHeader ?: "", recordItem?.userName ?: "", sourceText ?: "",
-                    targetText)
+                listener.onMessageChange(recordList, recordItem)
+//                rttBottomCenterSubtitlesView?.setShowTranslatorsInfo(recordItem?.userHeader ?: "", recordItem?.userName ?: "", sourceText ?: "",
+//                    targetText)
             }
             //房间内有音频输出时，字幕区域显示对应转写文字，无音频输出时，字幕区域在音频停止3S后自动消失
             handler.sendEmptyMessageDelayed(messageWhatNoSpeaking, 3000)
@@ -965,7 +1102,7 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
 /**
  * Rtt-转写逻辑管理
  */
-private class RttConversionManager(private val rttOptionsManager: RttOptionsManager, private val optionsCallback: ConversionOptionsInterface) {
+private class RttConversionManager(private val rttOptionsManager: RttOptionsManager, private val listener: FcrRttOptionsStatusListener) {
 
     /**
      * 是否开启成功
@@ -977,9 +1114,9 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
      */
     private val rttConversionDialog by lazy {
         AgoraUIRttConversionDialogBuilder(rttOptionsManager.rttOptions.getActivityContext()).build().apply {
-            setOnDismissListener {
-                this.optionsCallback!!.closeConversion()
-            }
+//            setOnDismissListener {
+//                this.optionsCallback!!.closeConversion()
+//            }
             optionsCallback = object : ConversionOptionsInterface {
                 /**
                  * 开启转写
@@ -987,18 +1124,19 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
                 override fun openConversion() {
                     if (rttOptionsManager.isOpenSubtitles()) {
                         openSuccess = true
-                        this@RttConversionManager.optionsCallback.openConversion()
+                        listener.conversionStateChange(true)
                     } else {
                         rttOptionsManager.sendRequest(openRtt = true, rttOptionsManager.isOpenSubtitles(),
                             callback = object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
                                 override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                                     openSuccess = true
-                                    this@RttConversionManager.optionsCallback.openConversion()
+                                    listener.conversionStateChange(true)
+                                    rttOptionsManager.startExperience()
                                 }
 
                                 override fun onError(httpCode: Int, code: Int, message: String?) {
                                     openSuccess = false
-                                    this@RttConversionManager.optionsCallback.closeConversion()
+                                    listener.conversionStateChange(false)
                                 }
                             })
                     }
@@ -1014,7 +1152,8 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
                             callback = object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
                                 override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                                     openSuccess = false
-                                    this@RttConversionManager.optionsCallback.closeConversion()
+                                    listener.conversionStateChange(false)
+                                    rttOptionsManager.stopExperience()
                                 }
 
                                 override fun onError(httpCode: Int, code: Int, message: String?) {
@@ -1022,7 +1161,7 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
                             })
                     } else {
                         openSuccess = false
-                        this@RttConversionManager.optionsCallback.closeConversion()
+                        listener.conversionStateChange(false)
                     }
                 }
 
@@ -1038,15 +1177,10 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
     }
 
     /**
-     * 左上角撰写中view
-     */
-    var rttTipLeftTopConversionStatusView: ViewGroup? = null
-
-    /**
      * 开启转写
      */
     fun openConversion(list: List<RttRecordItem>) {
-        this.resetShow()
+        listener.conversionViewReset()
         if (rttOptionsManager.isAllowUseRtt()) {
             rttConversionDialog.show(list)
             rttConversionDialog.optionsCallback!!.openConversion()
@@ -1057,18 +1191,13 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
      * 关闭转写
      */
     fun closeConversion() {
-        this.resetShow()
+        listener.conversionViewReset()
         if (rttOptionsManager.isAllowUseRtt()) {
             rttConversionDialog.dismiss()
+            rttConversionDialog.optionsCallback!!.closeConversion()
         }
     }
 
-    /**
-     * 重置显示
-     */
-    fun resetShow() {
-        this.rttTipLeftTopConversionStatusView?.visibility = View.GONE
-    }
 
     /**
      * 是否开启了转写
@@ -1089,9 +1218,7 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
      */
     fun updateShowList(list: List<RttRecordItem>) {
         if (isOpenConversion()) {
-            rttOptionsManager.rttOptions.runOnUiThread {
-                rttConversionDialog.updateShowList(list)
-            }
+            rttConversionDialog.updateShowList(list)
         }
     }
 }
@@ -1099,7 +1226,7 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
 /**
  * Rtt-设置弹窗管理
  */
-private class RttSettingManager(private val rttOptionsManager: RttOptionsManager, private val optionsCallback: SettingOptionsInterface) {
+private class RttSettingManager(private val rttOptionsManager: RttOptionsManager) {
     /**
      * RTT/转写设置弹窗
      */
@@ -1139,6 +1266,11 @@ private class RttSettingManager(private val rttOptionsManager: RttOptionsManager
     val currentSettingInfo by lazy { RttSettingInfo(rttOptionsManager) }
 
     /**
+     * 记录的上一次房间更新信息
+     */
+    var lastRecordWidgetInfo: FcrRttChangeOptionsData? = null
+
+    /**
      * 开启设置
      */
     fun openSetting() {
@@ -1161,7 +1293,7 @@ private class RttSettingManager(private val rttOptionsManager: RttOptionsManager
  */
 private class RttUseManager(
     private val rttOptionsManager: RttOptionsManager, var configAllowUse: Boolean = false,
-    private val optionsCallback: ExperienceOptionsInterface,
+    private val listener: FcrRttOptionsStatusListener,
 ) {
     /**
      * rtt功能默认体验时间,默认十分钟
@@ -1182,10 +1314,10 @@ private class RttUseManager(
             super.handleMessage(msg)
             rttExperienceReduceTime -= 1000
             if (rttExperienceReduceTime <= 0) {
-                optionsCallback.countDownCurrent(configAllowUse, rttExperienceDefaultTime, rttExperienceReduceTime)
+                listener.experienceInfoChange(configAllowUse, rttExperienceDefaultTime, rttExperienceReduceTime)
                 stopExperience()
             } else {
-                optionsCallback.countDownCurrent(configAllowUse, rttExperienceDefaultTime, rttExperienceReduceTime)
+                listener.experienceInfoChange(configAllowUse, rttExperienceDefaultTime, rttExperienceReduceTime)
                 sendEmptyMessageDelayed(msg.what, 1000)
             }
         }
@@ -1215,7 +1347,7 @@ private class RttUseManager(
      */
     fun startExperience() {
         if (isAllowUse() && rttExperienceReduceTime > 0) {
-            optionsCallback.countDownCurrent(configAllowUse, rttExperienceDefaultTime, rttExperienceReduceTime)
+            listener.experienceInfoChange(configAllowUse, rttExperienceDefaultTime, rttExperienceReduceTime)
             handler.removeMessages(0)
             handler.sendEmptyMessageDelayed(0, 1000)
         }
@@ -1225,8 +1357,20 @@ private class RttUseManager(
      * 结束体验
      */
     fun stopExperience() {
-        optionsCallback.stop()
+        listener.audioStateNotAllowUse()
         handler.removeMessages(0)
+    }
+
+    /**
+     * 声源语言调整数据处理
+     */
+    fun disposeDataChangeSourceLanguage(userInfo: EduBaseUserInfo, text: String): RttRecordItem {
+        return RttRecordItem().apply {
+            uuid = UUID.randomUUID().toString()
+            userName = userInfo.userName
+            statusText = text
+            recordList.add(this)
+        }
     }
 
     /**
@@ -1313,7 +1457,7 @@ private class RttUseManager(
         }
         //格式化所有的用户信息
         formatAllUserInfo(streamContext)
-        return if (true == paramsData?.isFinal) paramsData else null
+        return paramsData
     }
 
     /**
@@ -1340,41 +1484,9 @@ private class RttUseManager(
      */
     fun setLastFinal() {
         if (recordList.isNotEmpty()) {
-            recordList.get(recordList.size - 1).isFinal = true
+            recordList[recordList.size - 1].isFinal = true
         }
     }
-}
-
-/**
- * 字幕接口逻辑处理
- */
-private interface SubtitlesOptionsInterface {
-    fun open()
-    fun close()
-}
-
-/**
- * 体验相关接口回调
- */
-private interface ExperienceOptionsInterface {
-    /**
-     * 当前倒计时信息
-     * @param configAllowUse 配置是否允许使用rtt
-     * @param defTime 默认体验时间
-     * @param reduceTime 体验剩余时间
-     */
-    fun countDownCurrent(configAllowUse: Boolean, defTime: Int, reduceTime: Int)
-
-    /**
-     * 结束体验
-     */
-    fun stop()
-}
-
-/**
- * 设置相关接口回调
- */
-private interface SettingOptionsInterface {
 
 }
 
@@ -1389,6 +1501,36 @@ abstract class FcrRttOptionsStatusListener {
     open fun rttStateChange(open: Boolean) {}
 
     /**
+     * 音频状态-无人讲话
+     */
+    open fun audioStateNoSpeaking() {}
+
+    /**
+     * 音频状态-有人讲话
+     */
+    open fun audioStateSpeaking() {}
+
+    /**
+     * 音频状态-超过一定时间无人讲话
+     */
+    open fun audioStateNoSpeakingMoreTime() {}
+
+    /**
+     * 音频状态-开启中
+     */
+    open fun audioStateOpening() {}
+
+    /**
+     * 音频状态-无法使用
+     */
+    open fun audioStateNotAllowUse() {}
+
+    /**
+     * 音频状态-显示设置提示
+     */
+    open fun audioStateShowSettingHint() {}
+
+    /**
      * 体验信息变更
      * @param configAllowUseRtt 配置是否可以使用rtt功能
      * @param experienceReduceTime 剩余体验时间
@@ -1399,32 +1541,24 @@ abstract class FcrRttOptionsStatusListener {
     /**
      * 字幕状态变更
      * @param toOpen 开启-true，关闭-false
-     * @param configAllowUseRtt 配置是否可以使用rtt功能
-     * @param experienceReduceTime 剩余体验时间
-     * @param experienceDefaultTime 默认体验时间
      */
-    open fun subtitlesStateChange(toOpen: Boolean, configAllowUseRtt: Boolean, experienceDefaultTime: Int, experienceReduceTime: Int) {}
+    open fun subtitlesStateChange(toOpen: Boolean) {}
 
     /**
-     * 字幕状态变更-网络请求结果
-     * @param open 开启-true，关闭-false
+     * 字幕视图重置
      */
-    open fun subtitlesStateChangeNetResult(open: Boolean) {}
+    open fun subtitlesViewReset(openSuccess: Boolean) {}
 
     /**
      * 转写状态变更
      * @param toOpen 开启-true，关闭-false
-     * @param configAllowUseRtt 配置是否可以使用rtt功能
-     * @param experienceReduceTime 剩余体验时间
-     * @param experienceDefaultTime 默认体验时间
      */
-    open fun conversionStateChange(toOpen: Boolean, configAllowUseRtt: Boolean, experienceDefaultTime: Int, experienceReduceTime: Int) {}
+    open fun conversionStateChange(toOpen: Boolean) {}
 
     /**
-     * 转写状态变更-网络请求结果
-     * @param open 开启-true，关闭-false
+     * 转写视图重置
      */
-    open fun conversionStateChangeNetResult(open: Boolean) {}
+    open fun conversionViewReset() {}
 
     /**
      * 声源语言修改
@@ -1432,19 +1566,9 @@ abstract class FcrRttOptionsStatusListener {
     open fun sourceLanguageChange(language: RttLanguageEnum) {}
 
     /**
-     * 声源语言修改-网络请求结果
-     */
-    open fun sourceLanguageChangeNetResult(language: RttLanguageEnum) {}
-
-    /**
      * 目标语言修改-网络请求结果
      */
     open fun targetLanguageChange(languages: List<RttLanguageEnum>) {}
-
-    /**
-     * 目标语言修改
-     */
-    open fun targetLanguageChangeNetResult(languages: List<RttLanguageEnum>) {}
 
     /**
      * 双语状态变更

@@ -604,6 +604,15 @@ Delete your account will result in ….\n
     <string name="fcr_dialog_rtt_dialog_conversion_close">停止转写</string>
     <string name="fcr_dialog_rtt_subtitles_text_no_one_speaking">当前没有人在说话</string>
     <string name="fcr_dialog_rtt_subtitles_text_listening">正在聆听</string>
+    <string name="fcr_dialog_rtt_text_role_me">我</string>
+    <string name="fcr_dialog_rtt_text_change_source_language">已将声源语言设置为</string>
+    <string name="fcr_dialog_rtt_text_conversion_state_open">已开启实时转写</string>
+    <string name="fcr_dialog_rtt_text_conversion_state_close">已停止实时转写</string>
+    <string name="fcr_dialog_rtt_text_open_target_language">开启翻译识别内容</string>
+    <string name="fcr_dialog_rtt_toast_conversion_state_open_me_show">开启了实时转写服务，全体用户可见。</string>
+    <string name="fcr_dialog_rtt_toast_conversion_state_close_me_show">停止了实时转写服务，全体用户可见。</string>
+    <string name="fcr_dialog_rtt_toast_conversion_state_open">开启了实时转写服务。</string>
+    <string name="fcr_dialog_rtt_toast_conversion_state_close">停止了实时转写服务，全体用户可见</string>
     <string name="fcr_dialog_rtt_language_none">不翻译</string>
     <string name="fcr_dialog_rtt_language_zh_hk">zh-HK</string>
     <string name="fcr_dialog_rtt_language_zh_cn">zh-CN</string>

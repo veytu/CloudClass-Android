@@ -72,22 +72,24 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
      * 重置显示位置
      */
     fun resetShowPosition() {
-        if (width == 0) {
-            viewTreeObserver.addOnGlobalLayoutListener(object : OnGlobalLayoutListener {
-                override fun onGlobalLayout() {
-                    resetShowPosition()
-                    viewTreeObserver.removeOnGlobalLayoutListener(this)
+        runOnUIThread {
+            if (width == 0) {
+                viewTreeObserver.addOnGlobalLayoutListener(object : OnGlobalLayoutListener {
+                    override fun onGlobalLayout() {
+                        resetShowPosition()
+                        viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    }
+                })
+            } else {
+                val params = layoutParams as MarginLayoutParams
+                params.leftMargin = ((parent as View).width - width) / 2
+                params.bottomMargin = 100
+                if (params is ConstraintLayout.LayoutParams) {
+                    params.topToTop = -1
+                    params.bottomToBottom = (parent as View).id
                 }
-            })
-        } else {
-            val params = layoutParams as MarginLayoutParams
-            params.leftMargin = ((parent as View).width - width) / 2
-            params.bottomMargin = 100
-            if (params is ConstraintLayout.LayoutParams) {
-                params.topToTop = -1
-                params.bottomToBottom = (parent as View).id
+                setLayoutParams(params)
             }
-            setLayoutParams(params)
         }
     }
 
@@ -95,8 +97,10 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
      * 显示的时候需要再树布局测绘完成后再显示
      */
     override fun setVisibility(visibility: Int) {
-        resetShowPosition()
-        super.setVisibility(visibility)
+        runOnUIThread{
+            resetShowPosition()
+            super.setVisibility(visibility)
+        }
     }
 
     /**

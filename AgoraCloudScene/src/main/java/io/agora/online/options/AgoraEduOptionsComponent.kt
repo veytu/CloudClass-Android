@@ -429,8 +429,10 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
      * 隐藏rtt相关的
      */
     fun hiddenRtt() {
-        hiddenItem()
-        binding.optionItemRtt.isActivated = false
+        post {
+            hiddenItem()
+            binding.optionItemRtt.isActivated = false
+        }
     }
 
     fun setHandsupTimeout(seconds: Int) {

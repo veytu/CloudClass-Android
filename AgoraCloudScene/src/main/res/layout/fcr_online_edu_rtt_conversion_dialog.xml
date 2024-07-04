@@ -104,6 +104,7 @@
                         android:textColor="@color/fcr_v2_black"
                         android:textColorHint="@color/fcr_black_BBBBBB"
                         android:hint="@string/fcr_cloud_search"
+                        android:imeOptions="actionSearch"
                         android:imeActionLabel="@string/fcr_cloud_search"/>
 
                     <androidx.appcompat.widget.AppCompatImageView

@@ -1,12 +1,19 @@
 package io.agora.online.component.dialog
 
+import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Context
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.BackgroundColorSpan
+import android.text.style.ForegroundColorSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -51,7 +58,7 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
 
     init {
         setContentView(binding.root)
-        val window = this.window;
+        val window = this.window
         window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         window?.decorView?.setBackgroundResource(android.R.color.transparent)
         val layout = findViewById<ViewGroup>(R.id.agora_dialog_layout)
@@ -60,6 +67,7 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
         initView()
     }
 
+    @SuppressLint("SetTextI18n")
     private fun initView() {
         binding.fcrOnlineEduRttConversionDialogChangeStatus.setOnClickListener {
             if (it.isActivated) {
@@ -74,6 +82,32 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
         binding.fcrOnlineEduRttConversionDialogOptionsClose.setOnClickListener { dismiss() }
         binding.fcrOnlineEduRttConversionDialogList.adapter = mAdapter
         binding.fcrOnlineEduRttConversionDialogList.layoutManager = LinearLayoutManager(context)
+        binding.fcrOnlineEduRttConversionDialogInput.setOnEditorActionListener { v, actionId, _ ->
+            if (EditorInfo.IME_ACTION_SEARCH == actionId) {
+                searchData(if (v.text != null) v.text.toString() else "")
+                val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(v.windowToken, 0)
+                return@setOnEditorActionListener true
+            }
+            return@setOnEditorActionListener false
+        }
+        binding.fcrOnlineEduRttConversionDialogOptionsGoPre.setOnClickListener {
+            if (mAdapter.currentSearchResultIndex > 0) {
+                mAdapter.currentSearchResultIndex--
+                changeShowSearchResult()
+            }
+        }
+        binding.fcrOnlineEduRttConversionDialogOptionsGoNext.setOnClickListener {
+            if (mAdapter.currentSearchResultIndex + 1 < mAdapter.getSumResultCount()) {
+                mAdapter.currentSearchResultIndex++
+                changeShowSearchResult()
+            }
+        }
+        binding.fcrOnlineEduRttConversionDialogSearchClear.setOnClickListener {
+            binding.fcrOnlineEduRttConversionDialogInput.text = null
+            binding.fcrOnlineEduRttConversionDialogInput.clearFocus()
+            searchData(null)
+        }
     }
 
     /**
@@ -108,15 +142,22 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
      * 刷新记录信息
      */
     fun updateShowList(list: List<RttRecordItem>) {
-        if (mAdapter.dataList.size != list.size) {
-            mAdapter.dataList.clear()
-            mAdapter.dataList.addAll(list)
-            mAdapter.notifyItemRangeChanged(0, list.size)
-            binding.fcrOnlineEduRttConversionDialogList.scrollToPosition(mAdapter.dataList.size - 1)
-        } else {
-            mAdapter.dataList[mAdapter.dataList.size - 1] = list[list.size - 1]
-            mAdapter.notifyItemChanged(mAdapter.dataList.size - 1)
-            binding.fcrOnlineEduRttConversionDialogList.scrollToPosition(mAdapter.dataList.size - 1)
+        binding.root.post {
+            if (mAdapter.dataList.size != list.size) {
+                mAdapter.dataList.clear()
+                mAdapter.dataList.addAll(list)
+                mAdapter.notifyItemRangeChanged(0, list.size)
+                if (mAdapter.searchText.isNullOrEmpty()) {
+                    binding.fcrOnlineEduRttConversionDialogList.scrollToPosition(mAdapter.dataList.size - 1)
+                }
+            } else {
+                mAdapter.dataList[mAdapter.dataList.size - 1] = list[list.size - 1]
+                mAdapter.notifyItemChanged(mAdapter.dataList.size - 1)
+                if (mAdapter.searchText.isNullOrEmpty()) {
+                    binding.fcrOnlineEduRttConversionDialogList.scrollToPosition(mAdapter.dataList.size - 1)
+                }
+            }
+            this.searchData(mAdapter.searchText)
         }
     }
 
@@ -143,6 +184,40 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
     }
 
     /**
+     * 搜索数据
+     */
+    @SuppressLint("SetTextI18n")
+    private fun searchData(text: String?) {
+        mAdapter.searchText = text
+        if (!text.isNullOrEmpty()) {
+            mAdapter.searchResultListIndexMap.clear()
+            mAdapter.dataList.forEachIndexed { index, rttRecordItem ->
+                findSubstringsIndexes(rttRecordItem.sourceText, text).apply {
+                    addAll(findSubstringsIndexes(if (rttRecordItem.currentTargetLan.isNullOrEmpty()) "" else rttRecordItem.targetText,
+                        text).map { return@map it + (rttRecordItem.sourceText?.length ?: 0) })
+                }.let {
+                    if (it.isNotEmpty()) {
+                        mAdapter.searchResultListIndexMap[index] = it
+                    }
+                }
+            }
+            mAdapter.currentSearchResultIndex = mAdapter.currentSearchResultIndex.coerceAtMost(mAdapter.itemCount)
+            binding.fcrOnlineEduRttConversionDialogSearchClear.visibility = View.VISIBLE
+            binding.fcrOnlineEduRttConversionDialogSearchCount.visibility = View.VISIBLE
+            binding.fcrOnlineEduRttConversionDialogOptionsChangeLoc.visibility = View.VISIBLE
+            changeShowSearchResult()
+        } else {
+            mAdapter.searchResultListIndexMap.clear()
+            mAdapter.currentSearchResultIndex = 0
+            mAdapter.notifyItemRangeChanged(0, mAdapter.itemCount)
+            binding.fcrOnlineEduRttConversionDialogSearchClear.visibility = View.GONE
+            binding.fcrOnlineEduRttConversionDialogSearchCount.visibility = View.GONE
+            binding.fcrOnlineEduRttConversionDialogOptionsChangeLoc.visibility = View.GONE
+        }
+    }
+
+
+    /**
      * 显示弹窗
      */
     fun show(list: List<RttRecordItem>) {
@@ -150,6 +225,44 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
         mAdapter.dataList.addAll(list)
         openConversion()
         super.show()
+    }
+
+    /**
+     * 从字符串中查找子字符串位置列表
+     */
+    private fun findSubstringsIndexes(input: String?, searchString: String): ArrayList<Int> {
+        if (input.isNullOrEmpty()) {
+            return arrayListOf()
+        }
+        val indexes = arrayListOf<Int>()
+        var index = input.indexOf(searchString, 0)
+        while (index >= 0) {
+            indexes.add(index)
+            index = input.indexOf(searchString, index + 1)
+        }
+        return indexes
+    }
+
+    /**
+     * 修改显示的搜索结果
+     */
+    @SuppressLint("SetTextI18n")
+    private fun changeShowSearchResult() {
+        binding.fcrOnlineEduRttConversionDialogSearchCount.text = "${mAdapter.currentSearchResultIndex + 1}/${mAdapter.getSumResultCount()}"
+        binding.fcrOnlineEduRttConversionDialogOptionsGoPre.isEnabled = mAdapter.currentSearchResultIndex > 0
+        binding.fcrOnlineEduRttConversionDialogOptionsGoNext.isEnabled = mAdapter.currentSearchResultIndex < (mAdapter.getSumResultCount() - 1)
+        mAdapter.notifyItemRangeChanged(0, mAdapter.itemCount)
+        //滑动到指定位置
+        var count = 0
+        for (entry in mAdapter.searchResultListIndexMap) {
+            if (count <= mAdapter.currentSearchResultIndex && mAdapter.currentSearchResultIndex < count + entry.value.size) {
+                binding.fcrOnlineEduRttConversionDialogList.scrollToPosition(entry.key)
+                break
+            }
+            count += entry.value.size
+        }
+
+
     }
 }
 
@@ -177,6 +290,48 @@ interface ConversionOptionsInterface {
  * 数据记录适配器
  */
 private class RecordAdapter(private val context: Context, val dataList: ArrayList<RttRecordItem>) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
+    /**
+     * 搜索结果下标
+     * key值是列表中位置
+     * value是数据元素位置
+     */
+    var searchResultListIndexMap = HashMap<Int, List<Int>>()
+
+    /**
+     * 搜索的文本
+     */
+    var searchText: String? = null
+
+    /**
+     * 当前显示的查询结果位置
+     */
+    var currentSearchResultIndex = 0
+
+    /**
+     * 获取总的查询结果数量
+     */
+    fun getSumResultCount(): Int {
+        var count = 0
+        for (entry in searchResultListIndexMap) {
+            count += entry.value.size
+        }
+        return count
+    }
+
+    /**
+     * 获取当前条目之前的结果数量
+     */
+    fun getPreItemResultCount(position: Int): Int {
+        var count = 0
+        for (entry in searchResultListIndexMap) {
+            if (entry.key < position) {
+                count += entry.value.size
+            }
+        }
+        return count
+    }
+
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         if (dataList[viewType].statusText.isNullOrEmpty()) {
             return object : RecyclerView.ViewHolder(
@@ -202,10 +357,48 @@ private class RecordAdapter(private val context: Context, val dataList: ArrayLis
                 it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_time).text =
                     (if (bean.time == null || bean.time == 0L) null else bean.time)?.let { time -> Date(time) }
                         ?.let { date -> SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA).format(date) }
-                it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_origin).text = bean.sourceText
+
+                if (searchText.isNullOrEmpty() || !searchResultListIndexMap.containsKey(position)) {
+                    it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_origin).text = bean.sourceText
+                    it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_result).text =
+                        if (bean.currentTargetLan.isNullOrEmpty()) "" else bean.targetText
+                } else {
+                    val resultCount = getPreItemResultCount(position)
+                    val sourceSpan = SpannableString(bean.sourceText)
+                    val targetTextSpan =
+                        if (bean.currentTargetLan.isNullOrEmpty() || bean.targetText.isNullOrEmpty()) null else SpannableString(bean.targetText)
+                    searchResultListIndexMap[position]?.forEachIndexed { index, position ->
+                        if (resultCount + index == currentSearchResultIndex) {
+                            //当前是定位到的位置
+                            if (position < sourceSpan.length) {
+                                sourceSpan.setSpan(ForegroundColorSpan(Color.WHITE), position, position + searchText!!.length,
+                                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                sourceSpan.setSpan(BackgroundColorSpan(Color.parseColor("#4262FF")), position, position + searchText!!.length,
+                                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            } else {
+                                targetTextSpan?.setSpan(ForegroundColorSpan(Color.WHITE), position, position + searchText!!.length,
+                                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                                targetTextSpan?.setSpan(BackgroundColorSpan(Color.parseColor("#4262FF")), position, position + searchText!!.length,
+                                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            }
+                        } else {
+                            //非定位到的位置
+                            if (position < sourceSpan.length) {
+                                sourceSpan.setSpan(BackgroundColorSpan(Color.parseColor("#334262FF")), position, position + searchText!!.length,
+                                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            } else {
+                                targetTextSpan?.setSpan(BackgroundColorSpan(Color.parseColor("#334262FF")), position, position + searchText!!.length,
+                                    Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                            }
+                        }
+
+
+                    }
+                    it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_origin).text = sourceSpan
+                    it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_result).text = targetTextSpan
+                }
 
                 it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_result).apply {
-                    text = if (bean.currentTargetLan.isNullOrEmpty()) "" else bean.targetText
                     visibility = if (bean.currentTargetLan.isNullOrEmpty()) View.GONE else View.VISIBLE
                 }
             }

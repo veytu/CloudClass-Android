@@ -7,8 +7,6 @@ import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
-import android.os.Looper
-import android.os.Message
 import android.text.SpannableString
 import android.util.TypedValue
 import android.view.Gravity
@@ -21,7 +19,6 @@ import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.children
 import io.agora.online.R
 
 @SuppressLint("StaticFieldLeak")
@@ -138,21 +135,21 @@ object AgoraUIToast {
      */
     private var lastShowToast: Toast? = null
 
-    /**
-     * 默认吐司控制器，用来移除到达时间的view视图
-     */
-    private val defaultToastHandler = object : Handler(Looper.getMainLooper()) {
-        override fun handleMessage(msg: Message) {
-            super.handleMessage(msg)
-            if (lastShowToast?.view != null) {
-                (lastShowToast!!.view as ViewGroup).children.forEach {
-                    if (it.id == msg.what) {
-                        (lastShowToast!!.view as ViewGroup).removeView(it)
-                    }
-                }
-            }
-        }
-    }
+//    /**
+//     * 默认吐司控制器，用来移除到达时间的view视图
+//     */
+//    private val defaultToastHandler = object : Handler(Looper.getMainLooper()) {
+//        override fun handleMessage(msg: Message) {
+//            super.handleMessage(msg)
+//            if (lastShowToast?.view != null) {
+//                (lastShowToast!!.view as ViewGroup).children.forEach {
+//                    if (it.id == msg.what) {
+//                        (lastShowToast!!.view as ViewGroup).removeView(it)
+//                    }
+//                }
+//            }
+//        }
+//    }
 
     /**
      * 显示默认弹窗
@@ -164,11 +161,13 @@ object AgoraUIToast {
                 lastShowToast = Toast(context.applicationContext)
                 lastShowToast!!.view = LayoutInflater.from(context).inflate(R.layout.fcr_online_toast_layout_default, null, false)
             }
+            lastShowToast!!.cancel()
+            (lastShowToast!!.view as ViewGroup).removeAllViews()
             val view = getDefaultTextView(context, message)
             view.id = (Math.random() * 1000000000000).toInt()
-            //一定时间之后移除视图
-            defaultToastHandler.sendEmptyMessageDelayed(view.id,
-                if (LENGTH_SHORT == duration) 1500 else if (LENGTH_LONG == duration) 3000 else duration.toLong())
+//            //一定时间之后移除视图
+//            defaultToastHandler.sendEmptyMessageDelayed(view.id,
+//                if (LENGTH_SHORT == duration) 1500 else if (LENGTH_LONG == duration) 3000 else duration.toLong())
             (lastShowToast!!.view as ViewGroup).addView(view)
             lastShowToast!!.duration = Toast.LENGTH_LONG
             lastShowToast!!.setGravity(Gravity.CENTER, 0, -context.resources.getDimensionPixelOffset(R.dimen.dp_40))

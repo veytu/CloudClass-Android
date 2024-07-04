@@ -10,8 +10,10 @@ import io.agora.agoraeducore.extensions.widgets.AgoraBaseWidget
 import io.agora.online.R
 import io.agora.online.component.common.IAgoraUIProvider
 import io.agora.online.databinding.FcrOnlineToolBoxWidgetContentBinding
+import io.agora.online.helper.FcrRttOptionsStatusListener
 import io.agora.online.helper.IRttOptions
 import io.agora.online.helper.RttOptionsManager
+import io.agora.online.helper.RttRecordItem
 import io.agora.online.options.AgoraEduOptionsComponent
 import io.agora.online.options.AgoraEduRttOptionsComponent
 import java.text.MessageFormat
@@ -54,6 +56,7 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
         operator: EduBaseUserInfo?,
     ) {
         super.onWidgetRoomPropertiesUpdated(properties, cause, keys, operator)
+        contentView?.onWidgetRoomPropertiesUpdated(properties, cause, keys, operator)
     }
 
     /**
@@ -66,17 +69,88 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
 
     internal inner class AgoraRttToolBoxWidgetContent(
         val container: ViewGroup, agoraUIProvider: IAgoraUIProvider,
-        agoraEduOptionsComponent: AgoraEduOptionsComponent, conversionStatusView: ViewGroup, subtitleView: AgoraEduRttOptionsComponent,
+        agoraEduOptionsComponent: AgoraEduOptionsComponent?, conversionStatusView: ViewGroup?, subtitleView: AgoraEduRttOptionsComponent?,
     ) : IRttOptions {
-        private val TAG = "AgoraRttToolBoxWidgetContent"
-
         /**
          * Rtt功能的管理
          */
         private val rttOptionsManager: RttOptionsManager by lazy {
             RttOptionsManager(this).also {
-                it.initView(conversionStatusView, subtitleView, agoraUIProvider)
-                it.setEduOptionsComponent(agoraEduOptionsComponent)
+                subtitleView?.initView(agoraUIProvider)
+                it.initView(agoraUIProvider)
+                it.addListener(object : FcrRttOptionsStatusListener() {
+                    override fun conversionViewReset() {
+                        super.conversionViewReset()
+                        agoraEduOptionsComponent?.hiddenRtt()
+                        conversionStatusView?.visibility = View.GONE
+                    }
+
+                    override fun subtitlesViewReset(openSuccess: Boolean) {
+                        super.subtitlesViewReset(openSuccess)
+                        agoraEduOptionsComponent?.hiddenRtt()
+                        if (openSuccess) {
+                            subtitleView?.visibility = View.VISIBLE
+                        } else {
+                            subtitleView?.visibility = View.GONE
+                        }
+                    }
+
+                    override fun subtitlesStateChange(toOpen: Boolean) {
+                        super.subtitlesStateChange(toOpen)
+                        agoraEduOptionsComponent?.hiddenRtt()
+                    }
+
+                    override fun conversionStateChange(toOpen: Boolean) {
+                        super.conversionStateChange(toOpen)
+                        agoraEduOptionsComponent?.hiddenRtt()
+                    }
+
+                    override fun experienceInfoChange(configAllowUseRtt: Boolean, experienceDefaultTime: Int, experienceReduceTime: Int) {
+                        super.experienceInfoChange(configAllowUseRtt, experienceDefaultTime, experienceReduceTime)
+                        subtitleView?.setExperienceInfo(configAllowUseRtt, experienceDefaultTime, experienceReduceTime)
+                    }
+
+                    override fun audioStateNotAllowUse() {
+                        super.audioStateNotAllowUse()
+                        subtitleView?.setShowStatusInfo(showProgress = false, showIcon = false,
+                            text = container.context.getString(R.string.fcr_dialog_rtt_time_limit_status_not_allow_use))
+                    }
+
+                    override fun audioStateNoSpeaking() {
+                        super.audioStateNoSpeaking()
+                        subtitleView?.setShowStatusInfo(showProgress = false, showIcon = false,
+                            text = container.context.getString(R.string.fcr_dialog_rtt_subtitles_text_no_one_speaking))
+                    }
+
+                    override fun audioStateNoSpeakingMoreTime() {
+                        super.audioStateNoSpeakingMoreTime()
+                        subtitleView?.visibility = View.GONE
+                    }
+
+                    override fun audioStateOpening() {
+                        super.audioStateOpening()
+                        subtitleView?.setShowStatusInfo(showProgress = true, showIcon = false,
+                            text = container.context.getString(R.string.fcr_dialog_rtt_dialog_subtitles_status_opening))
+                    }
+
+                    override fun audioStateShowSettingHint() {
+                        super.audioStateShowSettingHint()
+                        subtitleView?.setShowStatusInfo(showProgress = false, showIcon = false,
+                            text = container.context.getString(R.string.fcr_dialog_rtt_dialog_subtitles_status_opening_success_hint))
+                    }
+
+                    override fun audioStateSpeaking() {
+                        super.audioStateSpeaking()
+                        subtitleView?.setShowStatusInfo(showProgress = false, showIcon = true,
+                            text = container.context.getString(R.string.fcr_dialog_rtt_subtitles_text_listening))
+                    }
+
+                    override fun onMessageChange(recordList: List<RttRecordItem>, currentData: RttRecordItem?) {
+                        super.onMessageChange(recordList, currentData)
+                        subtitleView?.setShowTranslatorsInfo(currentData?.userHeader ?: "", currentData?.userName ?: "",
+                            currentData?.sourceText ?: "", currentData?.targetText)
+                    }
+                })
             }
         }
 
@@ -160,6 +234,16 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
          */
         override fun runOnUiThread(runnable: Runnable) {
             container.post(runnable)
+        }
+
+        /**
+         * widget属性信息变更
+         */
+        fun onWidgetRoomPropertiesUpdated(
+            properties: MutableMap<String, Any>, cause: MutableMap<String, Any>?, keys: MutableList<String>,
+            operator: EduBaseUserInfo?,
+        ) {
+            rttOptionsManager.onWidgetRoomPropertiesUpdated(properties, operator)
         }
     }
 }
