@@ -22,6 +22,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import io.agora.online.R
 import io.agora.online.databinding.FcrOnlineEduRttConversionDialogBinding
+import io.agora.online.helper.RttLanguageEnum
 import io.agora.online.helper.RttRecordItem
 import java.text.MessageFormat
 import java.text.SimpleDateFormat
@@ -331,7 +332,6 @@ private class RecordAdapter(private val context: Context, val dataList: ArrayLis
         return count
     }
 
-
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
         if (dataList[viewType].statusText.isNullOrEmpty()) {
             return object : RecyclerView.ViewHolder(
@@ -353,6 +353,8 @@ private class RecordAdapter(private val context: Context, val dataList: ArrayLis
             holder.itemView.let {
                 Glide.with(context).load(bean.userHeader).skipMemoryCache(true).placeholder(R.drawable.agora_video_ic_audio_on)
                     .apply(RequestOptions.circleCropTransform()).into(it.findViewById(R.id.agora_fcr_rtt_text_dialog_user_header))
+                it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_user_header_text).text =
+                    if (bean.userName.isNullOrEmpty()) "" else bean.userName!!.substring(0, 1)
                 it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_user_name).text = bean.userName
                 it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_time).text =
                     (if (bean.time == null || bean.time == 0L) null else bean.time)?.let { time -> Date(time) }
@@ -399,7 +401,8 @@ private class RecordAdapter(private val context: Context, val dataList: ArrayLis
                 }
 
                 it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_result).apply {
-                    visibility = if (bean.currentTargetLan.isNullOrEmpty()) View.GONE else View.VISIBLE
+                    visibility = if (bean.currentTargetLan.isNullOrEmpty() || bean.currentTargetLan!!.contains(
+                            RttLanguageEnum.NONE)) View.GONE else View.VISIBLE
                 }
             }
         } else {

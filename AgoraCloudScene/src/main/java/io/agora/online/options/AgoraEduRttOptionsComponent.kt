@@ -97,7 +97,7 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
      * 显示的时候需要再树布局测绘完成后再显示
      */
     override fun setVisibility(visibility: Int) {
-        runOnUIThread{
+        runOnUIThread {
             resetShowPosition()
             super.setVisibility(visibility)
         }
@@ -158,6 +158,7 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
             binding.agoraFcrRttTextDialogLayoutText.visibility = View.VISIBLE
             Glide.with(this).load(headImage).skipMemoryCache(true).placeholder(R.drawable.agora_video_ic_audio_on)
                 .apply(RequestOptions.circleCropTransform()).into(binding.agoraFcrRttTextDialogUserHeader)
+            binding.agoraFcrRttTextDialogUserHeaderText.text = if (headImage.isEmpty()) "" else headImage.substring(0, 1)
             binding.agoraFcrRttTextDialogUserName.text = name
             binding.agoraFcrRttTextDialogTextOrigin.text = originText
             binding.agoraFcrRttTextDialogTextResult.text = resultText

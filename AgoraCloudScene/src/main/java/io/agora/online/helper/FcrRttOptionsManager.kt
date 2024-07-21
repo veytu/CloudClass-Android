@@ -106,6 +106,10 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     private val steamHandler = object : StreamHandler() {
         override fun onStreamMessage(channelId: String, streamId: Int, data: ByteArray?) {
             super.onStreamMessage(channelId, streamId, data)
+            //不允许使用或者已到体验时间就不在回调
+            if (!isAllowUseRtt()) {
+                return
+            }
             val parseFrom = AgoraSpeech2TextProtobuffer.Text.parseFrom(data)
             val recordItem = useManager.disposeData(parseFrom, settingsManager.currentSettingInfo, eduCore?.eduContextPool()?.streamContext())
             subtitlesManager.setShowCurrentData(useManager.getRecordList(), recordItem, settingsManager.currentSettingInfo)
@@ -244,6 +248,11 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
              */
             override fun conversionStateChange(toOpen: Boolean) {
                 listenerList.forEach { it.conversionStateChange(toOpen) }
+                val localUserInfo = eduCore?.eduContextPool()?.userContext()?.getLocalUserInfo()
+                if (localUserInfo != null) {
+                    conversionManager.addStateChangeTextMessage(if (toOpen) 1 else 0, EduBaseUserInfo(localUserInfo.userUuid, localUserInfo.userName,
+                        EduUserRole.values().find { it.value == localUserInfo.role.value }!!), localUserInfo, useManager)
+                }
             }
 
             /**
@@ -258,6 +267,11 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
              */
             override fun sourceLanguageChange(language: RttLanguageEnum) {
                 listenerList.forEach { it.sourceLanguageChange(language) }
+                val localUserInfo = eduCore?.eduContextPool()?.userContext()?.getLocalUserInfo()
+                if (localUserInfo != null) {
+                    conversionManager.addSourceLanguageChangeMessage(EduBaseUserInfo(localUserInfo.userUuid, localUserInfo.userName,
+                        EduUserRole.values().find { it.value == localUserInfo.role.value }!!), localUserInfo, useManager, settingsManager, language)
+                }
             }
 
             /**
@@ -265,6 +279,12 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
              */
             override fun targetLanguageChange(languages: List<RttLanguageEnum>) {
                 listenerList.forEach { it.targetLanguageChange(languages) }
+                val localUserInfo = eduCore?.eduContextPool()?.userContext()?.getLocalUserInfo()
+                if (localUserInfo != null) {
+                    conversionManager.addTargetLanguageChangeMessage(!languages.contains(RttLanguageEnum.NONE),
+                        EduBaseUserInfo(localUserInfo.userUuid, localUserInfo.userName,
+                            EduUserRole.values().find { it.value == localUserInfo.role.value }!!), useManager)
+                }
             }
 
             /**
@@ -433,10 +453,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
         sendRequest(isOpenConversion() || isOpenSubtitles(), isOpenSubtitles(), object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
             override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                 useManager.setLastFinal()
-            }
-
-            override fun onError(httpCode: Int, code: Int, message: String?) {
-                super.onError(httpCode, code, message)
+                this@RttOptionsManager.getManagerListener().sourceLanguageChange(lan)
             }
         })
     }
@@ -449,6 +466,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
         sendRequest(isOpenConversion() || isOpenSubtitles(), isOpenSubtitles(), object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
             override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                 useManager.setLastFinal()
+                this@RttOptionsManager.getManagerListener().targetLanguageChange(lan.toList())
             }
         })
     }
@@ -493,6 +511,9 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     internal fun sendRequest(openRtt: Boolean, openRttSubtitles: Boolean, callback: HttpCallback<HttpBaseRes<RttChangeOptionsRes>>? = null) {
         val body = FcrRttChangeOptionsData.formatUseData(openRtt, openRttSubtitles, settingsManager.currentSettingInfo.sourceLan.value,
             settingsManager.currentSettingInfo.targetLan.map { it.value }.toTypedArray())
+        if (settingsManager.lastRecordWidgetInfo == null) {
+            settingsManager.lastRecordWidgetInfo = body
+        }
         val call = AppRetrofitManager.instance().getService(IRttOptionsService::class.java)
             .buildTokens(eduCore?.config?.appId, eduCore?.config?.roomUuid, if (openRtt) 1 else 0, body)
         AppRetrofitManager.exc(call, object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
@@ -529,52 +550,45 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
                     val localUserInfo = eduCore?.eduContextPool()?.userContext()?.getLocalUserInfo()
                     //判断是否改变了转写状态
                     if (checkUpdateConversion(it)) {
-                        val toOpen = 1 == it.transcribe
-                        val textContent = "${formatRoleName(userInfo, localUserInfo)}${
-                            rttOptions.getApplicationContext().getString(
-                                if (toOpen) R.string.fcr_dialog_rtt_text_conversion_state_open else R.string.fcr_dialog_rtt_text_conversion_state_close)
-                        }"
-                        val toastContent = "${formatRoleName(userInfo, localUserInfo)}${
-                            rttOptions.getApplicationContext().getString(if (userInfo.userUuid == localUserInfo?.userUuid) {
-                                if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open_me_show else R.string.fcr_dialog_rtt_toast_conversion_state_close_me_show
-                            } else {
-                                if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open else R.string.fcr_dialog_rtt_toast_conversion_state_close
-                            })
-                        }"
-                        AgoraUIToast.showDefaultToast(rttOptions.getApplicationContext(), toastContent)
-                        useManager.disposeDataChangeSourceLanguage(userInfo, textContent)
-                        conversionManager.updateShowList(useManager.getRecordList())
-                        LogX.i(TAG, "changeConversionState result=$textContent}")
+                        conversionManager.addStateChangeTextMessage(it.transcribe, userInfo, localUserInfo, useManager)
                     }
                     //判断是否开启了翻译
                     if (!it.languages?.target.isNullOrEmpty() && settingsManager.lastRecordWidgetInfo?.languages?.target.isNullOrEmpty()) {
-                        val showContent = rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_text_open_target_language)
-                        useManager.disposeDataChangeSourceLanguage(userInfo, showContent)
-                        conversionManager.updateShowList(useManager.getRecordList())
-                        LogX.i(TAG, "changeToOpenTargetLanguage result=$showContent}")
+                        settingsManager.currentSettingInfo.targetLan =
+                            it.languages?.target?.map { mapItem -> RttLanguageEnum.values().find { it.value == mapItem }!! }?.toTypedArray()
+                                ?: arrayOf()
+                        conversionManager.addTargetLanguageChangeMessage(true, userInfo, useManager)
                     }
                     //判断是否修改了声源语言
                     if (!it.languages?.source.isNullOrEmpty() && it.languages?.source != settingsManager.lastRecordWidgetInfo?.languages?.source) {
                         val sourceEnum = RttLanguageEnum.values().find { item -> item.value == it.languages?.source }
                         if (sourceEnum != null) {
-                            //前置名称
-                            val useText = "${
-                                formatRoleName(userInfo, eduCore?.eduContextPool()?.userContext()?.getLocalUserInfo())
-                            }${rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_text_change_source_language)}"
-                            val languageText = rttOptions.getApplicationContext().getString(sourceEnum.textRes)
-                            val showContent = SpannableString("$useText${languageText}")
-                            showContent.setSpan(
-                                ForegroundColorSpan(ContextCompat.getColor(rttOptions.getApplicationContext(), R.color.fcr_blue_4262)),
-                                showContent.lastIndexOf(languageText), showContent.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
-                            AgoraUIToast.showDefaultToast(rttOptions.getApplicationContext(), showContent)
-                            //通知处理
-                            useManager.disposeDataChangeSourceLanguage(userInfo, showContent.toString())
-                            conversionManager.updateShowList(useManager.getRecordList())
-                            LogX.i(TAG, "changeSourceLanguage source=${settingsManager.currentSettingInfo.sourceLan}, result=$sourceEnum}")
+                            settingsManager.currentSettingInfo.sourceLan = sourceEnum
+                            conversionManager.addSourceLanguageChangeMessage(userInfo, localUserInfo, useManager, settingsManager, sourceEnum)
                         }
                     }
                 }
+                settingsManager.lastRecordWidgetInfo = it
+            }
+        }
+    }
 
+    /**
+     * 初始化widget属性
+     */
+    fun onWidgetRoomPropertiesInit(properties: MutableMap<String, Any>?) {
+        if (properties != null) {
+            GsonUtil.jsonToObject<FcrRttChangeOptionsData>(GsonUtil.toJson(properties))?.let {
+                //转写状态
+                conversionManager.initOpenConversion(it.transcribe == 1)
+                //翻译
+                settingsManager.currentSettingInfo.targetLan =
+                    it.languages?.target?.map { mapItem -> RttLanguageEnum.values().find { it.value == mapItem }!! }?.toTypedArray() ?: arrayOf()
+                //声源语言
+                val sourceEnum = RttLanguageEnum.values().find { item -> item.value == it.languages?.source }
+                if (sourceEnum != null) {
+                    settingsManager.currentSettingInfo.sourceLan = sourceEnum
+                }
                 settingsManager.lastRecordWidgetInfo = it
             }
         }
@@ -601,7 +615,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * @param optionsUser 发起设置修改的用户信息
      * @param localUser 当前本地的用户信息
      */
-    private fun formatRoleName(optionsUser: EduBaseUserInfo, localUser: AgoraEduContextUserInfo?): String {
+    fun formatRoleName(optionsUser: EduBaseUserInfo, localUser: AgoraEduContextUserInfo?): String {
         return "${
             if (EduUserRole.STUDENT == optionsUser.role) {
                 rttOptions.getApplicationContext().getString(R.string.fcr_role_student)
@@ -618,6 +632,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
             }
         }) "
     }
+
 }
 
 /**
@@ -986,6 +1001,11 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
     private val messageWhatNoSpeaking = 1
 
     /**
+     * 正在聆听的消息类型
+     */
+    private val messageWhatListening = 2
+
+    /**
      * 所有的定时相关的处理
      */
     private val handler: Handler = object : Handler(rttOptionsManager.rttOptions.getActivityContext().mainLooper) {
@@ -993,9 +1013,15 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
             super.handleMessage(msg)
             when (msg.what) {
                 messageWhatOpenSuccess -> {
-                    listener.audioStateNoSpeaking()
                     openSuccess = true
                     listener.subtitlesStateChange(true)
+                    listener.audioStateSpeaking()
+                    //显示两秒正在聆听
+                    sendEmptyMessageDelayed(messageWhatListening, 2000)
+                }
+
+                messageWhatListening -> {
+                    listener.audioStateNoSpeaking()
                 }
 
                 messageWhatNoSpeaking -> {
@@ -1076,6 +1102,7 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
         if (isOpenSubtitles()) {
             listener.subtitlesViewReset(true)
             handler.removeMessages(messageWhatOpenSuccess)
+            handler.removeMessages(messageWhatListening)
             handler.removeMessages(messageWhatNoSpeaking)
 
             //是否开启双语显示
@@ -1198,12 +1225,18 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
         }
     }
 
-
     /**
      * 是否开启了转写
      */
     fun isOpenConversion(): Boolean {
         return openSuccess
+    }
+
+    /**
+     * 初始化转写状态
+     */
+    fun initOpenConversion(state: Boolean) {
+        openSuccess = true
     }
 
     /**
@@ -1217,9 +1250,64 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
      * 新增转写数据
      */
     fun updateShowList(list: List<RttRecordItem>) {
-        if (isOpenConversion()) {
-            rttConversionDialog.updateShowList(list)
+        rttConversionDialog.updateShowList(list)
+    }
+
+    /**
+     * 新增状态改变文本消息
+     */
+    fun addStateChangeTextMessage(transcribe: Int, userInfo: EduBaseUserInfo, localUserInfo: AgoraEduContextUserInfo?, useManager: RttUseManager) {
+        val toOpen = 1 == transcribe
+        val textContent = "${rttOptionsManager.formatRoleName(userInfo, localUserInfo)}${
+            rttOptionsManager.rttOptions.getApplicationContext()
+                .getString(if (toOpen) R.string.fcr_dialog_rtt_text_conversion_state_open else R.string.fcr_dialog_rtt_text_conversion_state_close)
+        }"
+        val toastContent = "${rttOptionsManager.formatRoleName(userInfo, localUserInfo)}${
+            rttOptionsManager.rttOptions.getApplicationContext().getString(if (userInfo.userUuid == localUserInfo?.userUuid) {
+                if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open_me_show else R.string.fcr_dialog_rtt_toast_conversion_state_close_me_show
+            } else {
+                if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open else R.string.fcr_dialog_rtt_toast_conversion_state_close
+            })
+        }"
+        if(rttOptionsManager.isOpenConversion() || rttOptionsManager.isOpenSubtitles()) {
+            AgoraUIToast.showDefaultToast(rttOptionsManager.rttOptions.getApplicationContext(), toastContent)
         }
+        useManager.disposeDataChangeSourceLanguage(userInfo, textContent)
+        rttOptionsManager.rttOptions.runOnUiThread { updateShowList(useManager.getRecordList()) }
+        LogX.i(TAG, "changeConversionState result=$textContent}")
+    }
+
+    /**
+     * 新增目标文本改变消息
+     */
+    fun addTargetLanguageChangeMessage(open: Boolean, userInfo: EduBaseUserInfo, useManager: RttUseManager) {
+        val showContent = rttOptionsManager.rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_text_open_target_language)
+        useManager.disposeDataChangeSourceLanguage(userInfo, showContent)
+        rttOptionsManager.rttOptions.runOnUiThread { updateShowList(useManager.getRecordList()) }
+        LogX.i(TAG, "changeToOpenTargetLanguage result=$showContent}")
+    }
+
+    /**
+     * 新增声源语言改变消息
+     */
+    fun addSourceLanguageChangeMessage(
+        userInfo: EduBaseUserInfo, localUserInfo: AgoraEduContextUserInfo?, useManager: RttUseManager,
+        settingsManager: RttSettingManager, sourceEnum: RttLanguageEnum,
+    ) {
+        //前置名称
+        val useText = "${
+            rttOptionsManager.formatRoleName(userInfo, localUserInfo)
+        }${rttOptionsManager.rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_text_change_source_language)}"
+        val languageText = rttOptionsManager.rttOptions.getApplicationContext().getString(sourceEnum.textRes)
+        val showContent = SpannableString("$useText${languageText}")
+        showContent.setSpan(ForegroundColorSpan(ContextCompat.getColor(rttOptionsManager.rttOptions.getApplicationContext(), R.color.fcr_blue_4262)),
+            showContent.lastIndexOf(languageText), showContent.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+        AgoraUIToast.showDefaultToast(rttOptionsManager.rttOptions.getApplicationContext(), showContent)
+        //通知处理
+        useManager.disposeDataChangeSourceLanguage(userInfo, showContent.toString())
+        updateShowList(useManager.getRecordList())
+        LogX.i(TAG, "changeSourceLanguage source=${settingsManager.currentSettingInfo.sourceLan}, result=$sourceEnum}")
+
     }
 }
 
@@ -1313,11 +1401,10 @@ private class RttUseManager(
         override fun handleMessage(msg: Message) {
             super.handleMessage(msg)
             rttExperienceReduceTime -= 1000
+            listener.experienceInfoChange(configAllowUse, rttExperienceDefaultTime, rttExperienceReduceTime)
             if (rttExperienceReduceTime <= 0) {
-                listener.experienceInfoChange(configAllowUse, rttExperienceDefaultTime, rttExperienceReduceTime)
                 stopExperience()
             } else {
-                listener.experienceInfoChange(configAllowUse, rttExperienceDefaultTime, rttExperienceReduceTime)
                 sendEmptyMessageDelayed(msg.what, 1000)
             }
         }
@@ -1369,7 +1456,9 @@ private class RttUseManager(
             uuid = UUID.randomUUID().toString()
             userName = userInfo.userName
             statusText = text
-            recordList.add(this)
+            if (recordList.isEmpty() || recordList.isNotEmpty() && text != recordList[recordList.size - 1].statusText) {
+                recordList.add(this)
+            }
         }
     }
 
@@ -1399,7 +1488,7 @@ private class RttUseManager(
                         sourceLan = RttLanguageEnum.values().find { it.value == rttMsgData.culture }
                         sourceText = sourceTextStr.toString()
                         uid = rttMsgData.uid
-                        time = rttMsgData.time
+                        time = if (final) if (rttMsgData.time == 0L) rttMsgData.time else System.currentTimeMillis() else rttMsgData.time
                         isFinal = final
                         sourceConfidence = confidence
                     }
@@ -1409,7 +1498,7 @@ private class RttUseManager(
                         uuid = UUID.randomUUID().toString()
                         currentTargetLan = settingInfo.targetLan
                         sourceText = sourceTextStr.toString()
-                        time = rttMsgData.time
+                        time = if (final) if (rttMsgData.time == 0L) rttMsgData.time else System.currentTimeMillis() else rttMsgData.time
                         isFinal = final
                         sourceConfidence = confidence
                     }

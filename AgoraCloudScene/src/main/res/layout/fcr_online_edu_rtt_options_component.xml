@@ -113,6 +113,22 @@
                 android:backgroundTint="@color/fcr_white"/>
 
             <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/agora_fcr_rtt_text_dialog_user_header_text"
+                android:layout_width="@dimen/dp_18"
+                android:layout_height="@dimen/dp_18"
+                app:layout_constraintLeft_toLeftOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                android:layout_marginTop="@dimen/dp_6"
+                android:layout_marginLeft="12dp"
+                android:layout_marginEnd="@dimen/dp_6"
+                android:textSize="@dimen/fcr_font_size2"
+                android:textColor="@color/fcr_white"
+                android:background="@drawable/agora_solid_radius_max"
+                android:backgroundTint="@color/theme_blue_gray"
+                android:gravity="center"
+                tools:text="尹希尔"/>
+
+            <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/agora_fcr_rtt_text_dialog_user_name"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

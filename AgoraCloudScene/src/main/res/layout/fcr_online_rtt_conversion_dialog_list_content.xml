@@ -20,11 +20,24 @@
         android:backgroundTint="@color/theme_blue_gray"/>
 
     <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/agora_fcr_rtt_text_dialog_user_header_text"
+        android:layout_width="@dimen/dp_30"
+        android:layout_height="@dimen/dp_30"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:textSize="@dimen/sp_12"
+        android:textColor="@color/fcr_white"
+        android:textStyle="bold"
+        android:background="@drawable/agora_solid_radius_max"
+        android:backgroundTint="@color/theme_orange"
+        android:gravity="center"
+        tools:text="尹"/>
+
+    <androidx.appcompat.widget.AppCompatTextView
         android:id="@+id/agora_fcr_rtt_text_dialog_user_name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:layout_constraintTop_toTopOf="@id/agora_fcr_rtt_text_dialog_user_header"
-        app:layout_constraintBottom_toBottomOf="@id/agora_fcr_rtt_text_dialog_user_header"
         app:layout_constraintLeft_toRightOf="@id/agora_fcr_rtt_text_dialog_user_header"
         android:layout_marginStart="11dp"
         android:textSize="@dimen/sp_12"
