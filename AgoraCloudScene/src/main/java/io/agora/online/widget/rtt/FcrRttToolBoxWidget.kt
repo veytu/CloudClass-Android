@@ -185,6 +185,7 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
                 }
                 this.rttOptionsManager.openConversion()
             }
+            rttOptionsManager.onWidgetRoomPropertiesInit(widgetInfo?.roomProperties)
             resetStatus()
         }
 
@@ -192,7 +193,6 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
          * 重置显示状态
          */
         fun resetStatus() {
-            rttOptionsManager.onWidgetRoomPropertiesInit(widgetInfo?.roomProperties)
             val experienceReduceTime = rttOptionsManager.getExperienceReduceTime()
             binding.agoraRttDialogSubtitlesIcon.isActivated = rttOptionsManager.isOpenSubtitles()
             binding.agoraRttDialogConversionIcon.isActivated = rttOptionsManager.isOpenConversion()
