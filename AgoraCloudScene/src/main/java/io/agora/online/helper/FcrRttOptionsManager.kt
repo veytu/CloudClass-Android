@@ -547,6 +547,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
         if ("server" != operator?.userUuid) {
             GsonUtil.jsonToObject<FcrRttChangeOptionsData>(GsonUtil.toJson(properties))?.let {
                 operator?.let { userInfo ->
+                    LogX.i(TAG, "onWidgetRoomPropertiesUpdated result=${GsonUtil.toJson(properties)}__user=${GsonUtil.toJson(operator)}")
                     val localUserInfo = eduCore?.eduContextPool()?.userContext()?.getLocalUserInfo()
                     //判断是否改变了转写状态
                     if (checkUpdateConversion(it)) {
@@ -579,6 +580,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     fun onWidgetRoomPropertiesInit(properties: MutableMap<String, Any>?) {
         if (properties != null) {
             GsonUtil.jsonToObject<FcrRttChangeOptionsData>(GsonUtil.toJson(properties))?.let {
+                LogX.i(TAG, "onWidgetRoomPropertiesInit result=${GsonUtil.toJson(properties)}}")
                 //转写状态
                 conversionManager.initOpenConversion(it.transcribe == 1)
                 //翻译
@@ -1208,8 +1210,8 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
      */
     fun openConversion(list: List<RttRecordItem>) {
         listener.conversionViewReset()
+        rttConversionDialog.show(list)
         if (rttOptionsManager.isAllowUseRtt()) {
-            rttConversionDialog.show(list)
             rttConversionDialog.optionsCallback!!.openConversion()
         }
     }
@@ -1236,7 +1238,7 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
      * 初始化转写状态
      */
     fun initOpenConversion(state: Boolean) {
-        openSuccess = true
+        openSuccess = state
     }
 
     /**

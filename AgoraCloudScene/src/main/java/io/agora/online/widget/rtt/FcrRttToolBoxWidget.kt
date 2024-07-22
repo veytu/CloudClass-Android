@@ -76,6 +76,7 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
                 super.conversionViewReset()
                 agoraEduOptionsComponent?.hiddenRtt()
                 conversionStatusView?.visibility = View.GONE
+                resetStatus()
             }
 
             override fun subtitlesViewReset(openSuccess: Boolean) {
@@ -86,16 +87,19 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
                 } else {
                     subtitleView?.visibility = View.GONE
                 }
+                resetStatus()
             }
 
             override fun subtitlesStateChange(toOpen: Boolean) {
                 super.subtitlesStateChange(toOpen)
                 agoraEduOptionsComponent?.hiddenRtt()
+                resetStatus()
             }
 
             override fun conversionStateChange(toOpen: Boolean) {
                 super.conversionStateChange(toOpen)
                 agoraEduOptionsComponent?.hiddenRtt()
+                resetStatus()
             }
 
             override fun experienceInfoChange(configAllowUseRtt: Boolean, experienceDefaultTime: Int, experienceReduceTime: Int) {
@@ -176,11 +180,10 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
             binding.agoraRttDialogConversion.setOnClickListener {
                 if (this.rttOptionsManager.isOpenConversion()) {
                     binding.agoraRttDialogConversionIcon.isActivated = false
-                    this.rttOptionsManager.closeConversion()
                 } else {
                     binding.agoraRttDialogConversionIcon.isActivated = true
-                    this.rttOptionsManager.openConversion()
                 }
+                this.rttOptionsManager.openConversion()
             }
             resetStatus()
         }

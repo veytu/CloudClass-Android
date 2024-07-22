@@ -2,22 +2,18 @@ package io.agora.online.component.toast
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.res.ColorStateList
 import android.graphics.Color
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Handler
 import android.text.SpannableString
-import android.util.TypedValue
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import android.widget.RelativeLayout
 import android.widget.Toast
 import androidx.appcompat.widget.AppCompatImageView
 import androidx.appcompat.widget.AppCompatTextView
-import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.content.ContextCompat
 import io.agora.online.R
 
@@ -29,6 +25,7 @@ object AgoraUIToast {
     private const val LEVEL_INFO = 1
     private const val LEVEL_WARN = 2
     private const val LEVEL_ERROR = 3
+    private const val LEVEL_NONE = 4
 
 //    private var COLOR_INFO = Color.parseColor("#FAFFFF")
 //    private var COLOR_WARN = Color.parseColor("#FFFBF4")
@@ -136,37 +133,15 @@ object AgoraUIToast {
     fun showDefaultToast(context: Context, message: SpannableString, duration: Int = LENGTH_SHORT) {
         ContextCompat.getMainExecutor(context).execute {
             computeValues()
-            val showToast = Toast(context.applicationContext)
-            showToast.view = LayoutInflater.from(context).inflate(R.layout.fcr_online_toast_layout_default, null, false)
-            showToast.cancel()
-            (showToast.view as ViewGroup).removeAllViews()
-            val view = getDefaultTextView(context, message)
-            view.id = (Math.random() * 1000000000000).toInt()
-            (showToast.view as ViewGroup).addView(view)
-            showToast.duration = Toast.LENGTH_LONG
-            showToast.setGravity(Gravity.CENTER, 0, -context.resources.getDimensionPixelOffset(R.dimen.dp_40))
-            showToast.show()
-        }
-    }
-
-    private fun getDefaultTextView(context: Context, message: SpannableString): View {
-        val showView = AppCompatTextView(context)
-        showView.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, context.resources.getDimensionPixelOffset(R.dimen.dp_40))
-        showView.setPadding(context.resources.getDimensionPixelOffset(R.dimen.dp_20), context.resources.getDimensionPixelOffset(R.dimen.dp_10),
-            context.resources.getDimensionPixelOffset(R.dimen.dp_20), context.resources.getDimensionPixelOffset(R.dimen.dp_10))
-        showView.setTextColor(ContextCompat.getColor(context, R.color.fcr_white))
-        showView.setTextSize(TypedValue.COMPLEX_UNIT_PX, context.resources.getDimension(R.dimen.sp_13))
-        showView.setBackgroundResource(R.drawable.agora_solid_radius_max)
-        showView.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(context, R.color.fcr_black_66000000))
-        showView.text = message
-        showView.gravity = Gravity.CENTER
-        return LinearLayoutCompat(context).apply{
-            orientation = LinearLayoutCompat.VERTICAL
-            layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-            addView(showView)
-            addView(View(context).also {view->
-                view.layoutParams = ViewGroup.LayoutParams(10, context.resources.getDimensionPixelOffset(R.dimen.dp_10))
-            })
+            val toastLayout = LayoutInflater.from(context).inflate(R.layout.fcr_online_toast_layout_default, null, false)
+            toastLayout.findViewById<AppCompatTextView>(R.id.tvText)?.let { msgView ->
+                msgView.text = message
+            }
+            val toast = Toast(context.applicationContext)
+            toast.view = toastLayout
+            toast.duration = duration
+            toast.setGravity(Gravity.TOP, 0, 200)
+            toast.show()
         }
     }
 
@@ -176,14 +151,18 @@ object AgoraUIToast {
      * if null, display the toast at the system default position
      */
     @SuppressLint("InflateParams")
-    private fun showToast(context: Context, level: Int, anchor: View?, text: String, duration: Int) {
+    private fun showToast(context: Context, level: Int, anchor: View?, text: CharSequence, duration: Int) {
         ContextCompat.getMainExecutor(context).execute {
             computeValues()
             val toastLayout = LayoutInflater.from(context).inflate(R.layout.fcr_online_toast_layout, null, false)
 
             toastLayout.findViewById<AppCompatImageView>(R.id.agora_toast_icon)?.let { icon ->
-                getToastIconRes(level)?.let { iconRes ->
-                    icon.setImageResource(iconRes)
+                val res = getToastIconRes(level)
+                if(res !=null){
+                    icon.visibility = View.VISIBLE
+                    icon.setImageResource(res)
+                }else{
+                    icon.visibility = View.GONE
                 }
             }
 
