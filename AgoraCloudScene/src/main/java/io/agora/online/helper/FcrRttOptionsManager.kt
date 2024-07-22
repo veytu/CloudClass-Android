@@ -450,7 +450,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      */
     fun setSourceLanguage(lan: RttLanguageEnum) {
         settingsManager.currentSettingInfo.sourceLan = lan
-        sendRequest(isOpenConversion() || isOpenSubtitles(), isOpenSubtitles(), object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
+        sendRequest(isOpenConversion(), isOpenSubtitles(), object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
             override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                 useManager.setLastFinal()
                 this@RttOptionsManager.getManagerListener().sourceLanguageChange(lan)
@@ -463,7 +463,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      */
     fun setTargetLanguage(lan: Array<RttLanguageEnum>) {
         settingsManager.currentSettingInfo.targetLan = lan
-        sendRequest(isOpenConversion() || isOpenSubtitles(), isOpenSubtitles(), object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
+        sendRequest(isOpenConversion() , isOpenSubtitles(), object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
             override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                 useManager.setLastFinal()
                 this@RttOptionsManager.getManagerListener().targetLanguageChange(lan.toList())
@@ -508,14 +508,14 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * @param openRtt 是否打开rtt功能
      * @param openRttSubtitles 是否开启字幕
      */
-    internal fun sendRequest(openRtt: Boolean, openRttSubtitles: Boolean, callback: HttpCallback<HttpBaseRes<RttChangeOptionsRes>>? = null) {
-        val body = FcrRttChangeOptionsData.formatUseData(openRtt, openRttSubtitles, settingsManager.currentSettingInfo.sourceLan.value,
+    internal fun sendRequest(openRttConversion: Boolean, openRttSubtitles: Boolean, callback: HttpCallback<HttpBaseRes<RttChangeOptionsRes>>? = null) {
+        val body = FcrRttChangeOptionsData.formatUseData(openRttConversion, openRttSubtitles, settingsManager.currentSettingInfo.sourceLan.value,
             settingsManager.currentSettingInfo.targetLan.map { it.value }.toTypedArray())
         if (settingsManager.lastRecordWidgetInfo == null) {
             settingsManager.lastRecordWidgetInfo = body
         }
         val call = AppRetrofitManager.instance().getService(IRttOptionsService::class.java)
-            .buildTokens(eduCore?.config?.appId, eduCore?.config?.roomUuid, if (openRtt) 1 else 0, body)
+            .buildTokens(eduCore?.config?.appId, eduCore?.config?.roomUuid, if (openRttConversion || openRttSubtitles) 1 else 0, body)
         AppRetrofitManager.exc(call, object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
             override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                 useManager.setExperienceReduceTime(useManager.rttExperienceDefaultTime - ((result?.data?.duration ?: 0) * 1000))
@@ -973,9 +973,9 @@ private data class FcrRttChangeOptionsData(
     var subtitle: Int = 0,
 ) {
     companion object {
-        fun formatUseData(openRtt: Boolean, openSubtitle: Boolean, sourceLan: String, targetLan: Array<String>): FcrRttChangeOptionsData {
-            return FcrRttChangeOptionsData(RttChangOptionsLanguage(sourceLan, targetLan), if (targetLan.isNotEmpty() && openRtt) 1 else 0,
-                if (openSubtitle && openRtt) 1 else 0)
+        fun formatUseData(openRttConversion : Boolean, openSubtitle: Boolean, sourceLan: String, targetLan: Array<String>): FcrRttChangeOptionsData {
+            return FcrRttChangeOptionsData(RttChangOptionsLanguage(sourceLan, targetLan), if(openRttConversion) 1 else 0,
+                if (openSubtitle) 1 else 0)
         }
     }
 }
@@ -1045,7 +1045,7 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
             //显示文案
             listener.audioStateOpening()
             //发起开启rtt请求
-            rttOptionsManager.sendRequest(openRtt = true, openRttSubtitles = true,
+            rttOptionsManager.sendRequest(rttOptionsManager.isOpenConversion(), openRttSubtitles = true,
                 callback = object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
                     override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                         //延迟两秒开启文案：点击字幕位置可以更改字幕设置
@@ -1153,7 +1153,7 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
                         openSuccess = true
                         listener.conversionStateChange(true)
                     } else {
-                        rttOptionsManager.sendRequest(openRtt = true, rttOptionsManager.isOpenSubtitles(),
+                        rttOptionsManager.sendRequest( true, rttOptionsManager.isOpenSubtitles(),
                             callback = object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
                                 override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                                     openSuccess = true
