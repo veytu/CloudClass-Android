@@ -43,18 +43,14 @@ class FcrRttToolBoxComponent : AbsAgoraEduComponent {
             if (widget == null) {
                 val widgetConfig = eduContext?.widgetContext()?.getWidgetConfig(widgetId)
                 widgetConfig?.let { config ->
-                    val widget = eduContext?.widgetContext()?.create(config) as FcrRttToolBoxWidget?
+                    widget = eduContext?.widgetContext()?.create(config) as FcrRttToolBoxWidget?
                     widget?.init(binding.root, agoraUIProvider, agoraEduOptionsComponent!!, conversionStatusView!!, subtitleView!!)
                 }
             }
         }
 
         override fun onWidgetInActive(widgetId: String) {
-            if (widget != null) {
-                ContextCompat.getMainExecutor(binding.root.context).execute {
-                    widget!!.release()
-                }
-            }
+            ContextCompat.getMainExecutor(binding.root.context).execute { widget?.release() }
         }
     }
 

@@ -49,7 +49,8 @@ import io.agora.online.impl.whiteboard.bean.AgoraBoardInteractionSignal
 import io.agora.online.provider.AgoraUIUserDetailInfo
 import io.agora.online.provider.UIDataProviderListenerImpl
 
-class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhiteBoardIconClickListener, OnAgoraTransportListener {
+class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhiteBoardIconClickListener,
+    OnAgoraTransportListener {
     constructor(context: Context) : super(context)
     constructor(context: Context, attr: AttributeSet) : super(context, attr)
     constructor(context: Context, attr: AttributeSet, defStyleAttr: Int) : super(context, attr, defStyleAttr)
@@ -139,7 +140,10 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
                     isRequestHelp = true
                 }
             } else {
-                AgoraUIToast.warn(context.applicationContext, text = resources.getString(R.string.fcr_group_teacher_exist_hint))
+                AgoraUIToast.warn(
+                    context.applicationContext,
+                    text = resources.getString(R.string.fcr_group_teacher_exist_hint)
+                )
             }
         }
         binding.optionItemSetting.setOnClickListener {
@@ -166,13 +170,18 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
         binding.optionItemRoster.setOnClickListener {
             if (!binding.optionItemRoster.isActivated) {
                 popupViewRoster?.isShow = true
-                if (eduContext?.roomContext()?.getRoomInfo()?.roomType?.value == RoomType.SMALL_CLASS.value || eduContext?.roomContext()
-                        ?.getRoomInfo()?.roomType?.value == RoomType.GROUPING_CLASS.value) {
+                if (eduContext?.roomContext()?.getRoomInfo()?.roomType?.value == RoomType.SMALL_CLASS.value
+                    || eduContext?.roomContext()?.getRoomInfo()?.roomType?.value == RoomType.GROUPING_CLASS.value
+                ) {
                     showItem(popupViewRoster, R.dimen.agora_userlist_dialog_w, R.dimen.agora_userlist_dialog_h)
                     popupViewRoster?.showUserList()
                 } else {
                     popupViewRoster?.updateStuListData()//默认加载第一页数据
-                    showItem(popupViewRoster, R.dimen.agora_userlist_dialog_large_w, R.dimen.agora_userlist_dialog_large_h)
+                    showItem(
+                        popupViewRoster,
+                        R.dimen.agora_userlist_dialog_large_w,
+                        R.dimen.agora_userlist_dialog_large_h
+                    )
                 }
                 setIconActivated(binding.optionItemRoster)
             } else {
@@ -196,10 +205,11 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
             eduContext?.widgetContext()?.setWidgetActive(AgoraWidgetDefaultId.WhiteBoard.id, info)
         }
 
-        eduCore?.eduContextPool()?.widgetContext()?.addWidgetMessageObserver(whiteBoardWidgetMsgObserver, AgoraWidgetDefaultId.WhiteBoard.id)
+        eduCore?.eduContextPool()?.widgetContext()
+            ?.addWidgetMessageObserver(whiteBoardWidgetMsgObserver, AgoraWidgetDefaultId.WhiteBoard.id)
     }
 
-    fun cancelHandsUp() {
+    fun cancelHandsUp(){
         ContextCompat.getMainExecutor(context).execute {
             binding.optionShowHandup.visibility = View.GONE
             binding.optionItemHandup.cancelHandsUp()
@@ -240,8 +250,9 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
 
             val localUserUuid = eduContext?.userContext()?.getLocalUserInfo()?.userUuid
 
-            if (eduContext?.userContext()?.getLocalUserInfo()?.role == AgoraEduContextUserRole.Student && eduContext?.roomContext()
-                    ?.getRoomInfo()?.roomType == RoomType.LARGE_CLASS) {//大班课,才会进这里的逻辑
+            if (eduContext?.userContext()?.getLocalUserInfo()?.role == AgoraEduContextUserRole.Student
+                && eduContext?.roomContext()?.getRoomInfo()?.roomType == RoomType.LARGE_CLASS
+            ) {//大班课,才会进这里的逻辑
                 isLocalUserOnStage = eduContext?.userContext()?.getCoHostList()?.find { it.userUuid == localUserUuid } != null
                 if (!isLocalUserOnStage) {//本地不在台上了//todo
                     //收回白板权限
@@ -310,7 +321,7 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
         override fun onRemoteUserLeft(
             user: AgoraEduContextUserInfo,
             operator: AgoraEduContextUserInfo?,
-            reason: EduContextUserLeftReason,
+            reason: EduContextUserLeftReason
         ) {
             super.onRemoteUserLeft(user, operator, reason)
             // 老师离开小组
@@ -325,7 +336,10 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
             super.onTeacherLaterJoin()
             if (isRequestHelp) {
                 ContextCompat.getMainExecutor(context).execute {
-                    AgoraUIToast.info(context.applicationContext, text = resources.getString(R.string.fcr_group_help_teacher_busy_msg))
+                    AgoraUIToast.info(
+                        context.applicationContext,
+                        text = resources.getString(R.string.fcr_group_help_teacher_busy_msg)
+                    )
                 }
                 isRequestHelp = false
             }
@@ -342,6 +356,7 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
         agroSettingWidget?.onExitListener = {
             onExitListener?.invoke()
         }
+
         if (getUIConfig().roster.isVisible && eduCore?.config?.roleType != AgoraEduRoleType.AgoraEduRoleTypeObserver.value) {
             popupViewRoster = AgoraEduRosterComponent(context)
             popupViewRoster?.initView(agoraUIProvider)
@@ -372,8 +387,7 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
                             }
                         }
                         LogX.i(TAG, "isOpenBoard=" + AgoraEduApplianceData.isOpenBoardWidget(eduCore) + "granted=" + localUserGranted)
-                        if (AgoraEduApplianceData.isOpenBoardWidget(
-                                eduCore) && (localUserGranted || localUser.role == AgoraEduContextUserRole.Teacher)) {  // 可以显示白板按钮，如果是老师则默认显示
+                        if (AgoraEduApplianceData.isOpenBoardWidget(eduCore) && (localUserGranted || localUser.role == AgoraEduContextUserRole.Teacher)) {  // 可以显示白板按钮，如果是老师则默认显示
                             setWhiteboardViewTool(true)
                         } else {
                             setWhiteboardViewTool(false)
@@ -404,7 +418,11 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
      */
     private fun showItem(item: View?, widthDimenId: Int, heightDimenId: Int) {
         itemContainer.removeAllViews()
-        itemContainer.addView(item, context.resources.getDimensionPixelOffset(widthDimenId), context.resources.getDimensionPixelOffset(heightDimenId))
+        itemContainer.addView(
+            item,
+            context.resources.getDimensionPixelOffset(widthDimenId),
+            context.resources.getDimensionPixelOffset(heightDimenId)
+        )
         if (popupViewChat == item) {
             hiddenChatNews()
         }

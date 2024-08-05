@@ -217,7 +217,6 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
         }
     }
 
-
     /**
      * 显示弹窗
      */
