@@ -1062,6 +1062,11 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
     private val messageWhatListening = 2
 
     /**
+     * 隐藏rtt的消息类型
+     */
+    private val messageWhatHidde = 3
+
+    /**
      * 所有的定时相关的处理
      */
     private val handler: Handler = object : Handler(rttOptionsManager.rttOptions.getActivityContext().mainLooper) {
@@ -1083,6 +1088,11 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
                 messageWhatNoSpeaking -> {
                     listener.audioStateNoSpeakingMoreTime()
                 }
+
+                messageWhatHidde -> {
+                    listener.subtitlesViewReset(false)
+                    listener.subtitlesStateChange(false)
+                }
             }
         }
     }
@@ -1094,6 +1104,8 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
      * @param experienceReduceTime 体验剩余时间
      */
     fun openSubtitles(configAllowUse: Boolean, experienceDefaultTime: Int, experienceReduceTime: Int) {
+        //清除消息
+        this.clearHandlerMsg()
         listener.subtitlesViewReset(true)
         if (rttOptionsManager.isAllowUseRtt()) {
             //可以使用的话先隐藏体验，后续再根据条件判断是否显示
@@ -1119,7 +1131,7 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
             listener.experienceInfoChange(configAllowUse, experienceDefaultTime, experienceReduceTime)
             listener.audioStateNotAllowUse()
             openSuccess = false
-            listener.subtitlesStateChange(false)
+            handler.sendEmptyMessageDelayed(messageWhatHidde, 2000)
         }
     }
 
@@ -1127,6 +1139,8 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
      * 关闭字幕
      */
     fun closeSubtitles() {
+        //清除消息
+        this.clearHandlerMsg()
         openSuccess = false
         listener.subtitlesViewReset(false)
         //发起开启rtt请求
@@ -1171,9 +1185,8 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
     fun setShowCurrentData(recordList: List<RttRecordItem>, recordItem: RttRecordItem?, currentSettingInfo: RttSettingInfo) {
         if (isOpenSubtitles()) {
             listener.subtitlesViewReset(true)
-            handler.removeMessages(messageWhatOpenSuccess)
-            handler.removeMessages(messageWhatListening)
-            handler.removeMessages(messageWhatNoSpeaking)
+            //清除消息
+            this.clearHandlerMsg()
 
             //是否开启双语显示
             val showTranslateOnly =
@@ -1194,6 +1207,16 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
             //房间内有音频输出时，字幕区域显示对应转写文字，无音频输出时，字幕区域在音频停止3S后自动消失
             handler.sendEmptyMessageDelayed(messageWhatNoSpeaking, 3000)
         }
+    }
+
+    /**
+     * 清除定时handler消息
+      */
+    private fun clearHandlerMsg(){
+        handler.removeMessages(messageWhatOpenSuccess)
+        handler.removeMessages(messageWhatListening)
+        handler.removeMessages(messageWhatNoSpeaking)
+        handler.removeMessages(messageWhatHidde)
     }
 }
 
@@ -1478,6 +1501,7 @@ private class RttUseManager(
             rttExperienceReduceTime -= 1000
             listener.experienceInfoChange(configAllowUse, rttExperienceDefaultTime, rttExperienceReduceTime)
             if (rttExperienceReduceTime <= 0) {
+                listener.audioStateNotAllowUse()
                 stopExperience()
             } else {
                 sendEmptyMessageDelayed(msg.what, 1000)
@@ -1519,7 +1543,6 @@ private class RttUseManager(
      * 结束体验
      */
     fun stopExperience() {
-        listener.audioStateNotAllowUse()
         handler.removeMessages(0)
     }
 

@@ -111,12 +111,14 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
             override fun audioStateNotAllowUse() {
                 super.audioStateNotAllowUse()
                 subtitleView?.resetShowPosition()
+                subtitleView?.visibility = View.VISIBLE
                 subtitleView?.setShowStatusInfo(showProgress = false, showIcon = false,
                     text = container.context.getString(R.string.fcr_dialog_rtt_time_limit_status_not_allow_use))
             }
 
             override fun audioStateNoSpeaking() {
                 super.audioStateNoSpeaking()
+                subtitleView?.visibility = View.VISIBLE
                 subtitleView?.setShowStatusInfo(showProgress = false, showIcon = false,
                     text = container.context.getString(R.string.fcr_dialog_rtt_subtitles_text_no_one_speaking))
             }
@@ -129,6 +131,7 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
             override fun audioStateOpening() {
                 super.audioStateOpening()
                 subtitleView?.resetShowPosition()
+                subtitleView?.visibility = View.VISIBLE
                 subtitleView?.setShowStatusInfo(showProgress = true, showIcon = false,
                     text = container.context.getString(R.string.fcr_dialog_rtt_dialog_subtitles_status_opening))
             }
@@ -141,12 +144,14 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
 
             override fun audioStateSpeaking() {
                 super.audioStateSpeaking()
+                subtitleView?.visibility = View.VISIBLE
                 subtitleView?.setShowStatusInfo(showProgress = false, showIcon = true,
                     text = container.context.getString(R.string.fcr_dialog_rtt_subtitles_text_listening))
             }
 
             override fun onMessageChange(recordList: List<RttRecordItem>, currentData: RttRecordItem?) {
                 super.onMessageChange(recordList, currentData)
+                subtitleView?.visibility = View.VISIBLE
                 subtitleView?.setShowTranslatorsInfo(currentData?.userHeader ?: "", currentData?.userName ?: "",
                     currentData?.sourceText ?: "", currentData?.targetText)
             }
