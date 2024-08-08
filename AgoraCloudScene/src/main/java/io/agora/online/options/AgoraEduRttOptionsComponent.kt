@@ -33,7 +33,7 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
         }
     }
 
-    fun initView(rttOptionsManager: RttOptionsManager,agoraUIProvider: IAgoraUIProvider) {
+    fun initView(rttOptionsManager: RttOptionsManager, agoraUIProvider: IAgoraUIProvider) {
         super.initView(agoraUIProvider)
         this.rttOptionsManager = rttOptionsManager
         binding.agoraFcrRttTextDialogClose.setOnClickListener {
@@ -53,7 +53,7 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
             }
 
             MotionEvent.ACTION_MOVE -> {
-                if(Math.abs(event.x - touchX) > 30 || Math.abs(event.y - touchY) > 30) {
+                if (Math.abs(event.x - touchX) > 30 || Math.abs(event.y - touchY) > 30) {
                     move = true
                     val params = layoutParams as MarginLayoutParams
                     params.leftMargin = Math.max(0, Math.min(params.leftMargin + (event.x - touchX).toInt(), (parent as View).width - width))
@@ -77,6 +77,7 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
      */
     fun resetShowPosition() {
         runOnUIThread {
+            visibility = View.INVISIBLE
             if (width == 0) {
                 viewTreeObserver.addOnGlobalLayoutListener(object : OnGlobalLayoutListener {
                     override fun onGlobalLayout() {
@@ -93,6 +94,7 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
                     params.bottomToBottom = (parent as View).id
                 }
                 setLayoutParams(params)
+                visibility = View.VISIBLE
             }
         }
     }
