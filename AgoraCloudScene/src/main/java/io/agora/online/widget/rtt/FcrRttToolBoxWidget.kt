@@ -81,6 +81,7 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
 
             override fun subtitlesViewReset(openSuccess: Boolean) {
                 super.subtitlesViewReset(openSuccess)
+                subtitleView?.resetShowPosition()
                 agoraEduOptionsComponent?.hiddenRtt()
                 if (openSuccess) {
                     subtitleView?.visibility = View.VISIBLE
@@ -195,13 +196,15 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
          * 重置显示状态
          */
         fun resetStatus() {
-            val experienceReduceTime = rttOptionsManager.getExperienceReduceTime()
-            binding.agoraRttDialogSubtitlesIcon.isActivated = rttOptionsManager.isOpenSubtitles()
-            binding.agoraRttDialogConversionIcon.isActivated = rttOptionsManager.isOpenConversion()
-            binding.fcrOnlineEduRttConversionDialogTimeLimitHint.text = if (experienceReduceTime > 0) {
-                MessageFormat.format(container.context.getString(R.string.fcr_dialog_rtt_time_limit_time), rttOptionsManager.getExperienceDefaultTime() / 60000)
-            } else {
-                container.context.getString(R.string.fcr_dialog_rtt_time_limit_end)
+            runOnUiThread{
+                val experienceReduceTime = rttOptionsManager.getExperienceReduceTime()
+                binding.agoraRttDialogSubtitlesIcon.isActivated = rttOptionsManager.isOpenSubtitles()
+                binding.agoraRttDialogConversionIcon.isActivated = rttOptionsManager.isOpenConversion()
+                binding.fcrOnlineEduRttConversionDialogTimeLimitHint.text = if (experienceReduceTime > 0) {
+                    MessageFormat.format(container.context.getString(R.string.fcr_dialog_rtt_time_limit_time), rttOptionsManager.getExperienceDefaultTime() / 60000)
+                } else {
+                    container.context.getString(R.string.fcr_dialog_rtt_time_limit_end)
+                }
             }
         }
 

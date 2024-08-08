@@ -408,7 +408,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
      * 开启转写
      */
     fun openConversion() {
-        this.localIsChangeTranscribeState = true;
+        this.localIsChangeTranscribeState = true
         conversionManager.openConversion(useManager.getRecordList())
     }
 
