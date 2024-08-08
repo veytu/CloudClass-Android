@@ -36,7 +36,7 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
     fun initView(rttOptionsManager: RttOptionsManager, agoraUIProvider: IAgoraUIProvider) {
         super.initView(agoraUIProvider)
         this.rttOptionsManager = rttOptionsManager
-        binding.agoraFcrRttTextDialogClose.setOnClickListener {
+        binding.agoraFcrRttTextDialogCloseView.setOnClickListener {
             rttOptionsManager.closeSubtitles()
         }
     }
@@ -168,7 +168,7 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
             //语言显示
             val showDouble = rttOptionsManager?.isShowDoubleLan() ?: false
             val leve2Text = if(showDouble) resultText else null
-            val leve1Text = if(!showDouble) resultText else originText;
+            val leve1Text = if(!showDouble && !resultText.isNullOrEmpty()) resultText else originText
 
             binding.agoraFcrRttTextDialogTextOrigin.text = leve1Text
             binding.agoraFcrRttTextDialogTextResult.text = resultText

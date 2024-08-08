@@ -126,7 +126,7 @@ private class SelectListAdapter(var context: Context, var dataList: MutableList<
                 } else {
                     currentSelect
                 }
-                lastSelect?.select = false
+                dataList.find { it.code == lastSelect!!.code }?.select = false
                 item.select = true
                 currentSelect = item
                 onSelectChangedListener?.onChanged(currentSelect!!)
@@ -292,8 +292,8 @@ private class ContentAdapter(var context: Context) : RecyclerView.Adapter<Recycl
             mToAdapter.dataList.add(
                 SelectItem(context.getString(item.textRes), item.value, true, currentSettingInfo.getTargetLan().find { it.value === item.value } != null))
         }
-//        mFromAdapter.notifyItemRangeChanged(0, mFromAdapter.itemCount)
-//        mToAdapter.notifyItemRangeChanged(0, mToAdapter.itemCount)
+        mFromAdapter.notifyItemRangeChanged(0, mFromAdapter.itemCount)
+        mToAdapter.notifyItemRangeChanged(0, mToAdapter.itemCount)
         notifyItemRangeChanged(0, itemCount)
     }
 
