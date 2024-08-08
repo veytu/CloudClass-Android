@@ -11,6 +11,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.RequestOptions
 import io.agora.online.R
 import io.agora.online.component.common.AbsAgoraEduComponent
+import io.agora.online.component.common.IAgoraUIProvider
 import io.agora.online.databinding.FcrOnlineEduRttOptionsComponentBinding
 import io.agora.online.helper.RttOptionsManager
 import java.text.MessageFormat
@@ -32,7 +33,8 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
         }
     }
 
-    fun initView(rttOptionsManager: RttOptionsManager) {
+    fun initView(rttOptionsManager: RttOptionsManager,agoraUIProvider: IAgoraUIProvider) {
+        super.initView(agoraUIProvider)
         this.rttOptionsManager = rttOptionsManager
         binding.agoraFcrRttTextDialogClose.setOnClickListener {
             rttOptionsManager.closeSubtitles()
@@ -51,12 +53,14 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
             }
 
             MotionEvent.ACTION_MOVE -> {
-                move = true
-                val params = layoutParams as MarginLayoutParams
-                params.leftMargin = Math.max(0, Math.min(params.leftMargin + (event.x - touchX).toInt(), (parent as View).width - width))
-                params.bottomMargin = Math.max(0, Math.min(params.bottomMargin - (event.y - touchY).toInt(), (parent as View).height - height))
-                setLayoutParams(params)
-                return true
+                if(Math.abs(event.x - touchX) > 30 || Math.abs(event.y - touchY) > 30) {
+                    move = true
+                    val params = layoutParams as MarginLayoutParams
+                    params.leftMargin = Math.max(0, Math.min(params.leftMargin + (event.x - touchX).toInt(), (parent as View).width - width))
+                    params.bottomMargin = Math.max(0, Math.min(params.bottomMargin - (event.y - touchY).toInt(), (parent as View).height - height))
+                    setLayoutParams(params)
+                    return true
+                }
             }
 
             MotionEvent.ACTION_UP -> {
@@ -98,7 +102,6 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
      */
     override fun setVisibility(visibility: Int) {
         runOnUIThread {
-            resetShowPosition()
             super.setVisibility(visibility)
         }
     }

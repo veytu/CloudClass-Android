@@ -44,7 +44,9 @@ class FcrRttToolBoxComponent : AbsAgoraEduComponent {
                 val widgetConfig = eduContext?.widgetContext()?.getWidgetConfig(widgetId)
                 widgetConfig?.let { config ->
                     widget = eduContext?.widgetContext()?.create(config) as FcrRttToolBoxWidget?
-                    widget?.init(binding.root, agoraUIProvider, agoraEduOptionsComponent!!, conversionStatusView!!, subtitleView!!)
+                    runOnUIThread{
+                        widget?.init(binding.root, agoraUIProvider, agoraEduOptionsComponent!!, conversionStatusView!!, subtitleView!!)
+                    }
                 }
             }
         }

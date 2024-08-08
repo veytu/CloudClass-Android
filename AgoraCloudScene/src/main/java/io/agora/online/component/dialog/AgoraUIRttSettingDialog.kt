@@ -249,15 +249,15 @@ private class ContentAdapter(var context: Context) : RecyclerView.Adapter<Recycl
                     findViewById<AppCompatTextView>(R.id.fcr_online_rtt_setting_dialog_content_switch_title).setText(
                         R.string.fcr_dialog_rtt_setting_dialog_title_switch)
                     findViewById<AppCompatImageView>(R.id.fcr_online_rtt_setting_dialog_content_switch_icon).isActivated =
-                        this@ContentAdapter.currentSettingInfo?.showDoubleLan ?: false
+                        this@ContentAdapter.currentSettingInfo?.isShowDoubleLan() ?: false
                     setOnClickListener {
-                        if (false == this@ContentAdapter.currentSettingInfo?.showDoubleLan) {
+                        if (false == this@ContentAdapter.currentSettingInfo?.isShowDoubleLan()) {
                             findViewById<AppCompatImageView>(R.id.fcr_online_rtt_setting_dialog_content_switch_icon).isActivated = true
-                            currentSettingInfo?.showDoubleLan = true
+                            currentSettingInfo?.setShowDoubleLan(true)
                             listener?.changeDoubleShow(true)
                         } else {
                             findViewById<AppCompatImageView>(R.id.fcr_online_rtt_setting_dialog_content_switch_icon).isActivated = false
-                            currentSettingInfo?.showDoubleLan = false
+                            currentSettingInfo?.setShowDoubleLan(false)
                             listener?.changeDoubleShow(false)
                         }
                     }
@@ -285,12 +285,12 @@ private class ContentAdapter(var context: Context) : RecyclerView.Adapter<Recycl
         mFromAdapter.dataList.clear()
         for (item in currentSettingInfo.sourceListLan) {
             mFromAdapter.dataList.add(
-                SelectItem(context.getString(item.textRes), item.value, true, item.value === currentSettingInfo.sourceLan.value))
+                SelectItem(context.getString(item.textRes), item.value, true, item.value === currentSettingInfo.getSourceLan().value))
         }
         mToAdapter.dataList.clear()
         for (item in currentSettingInfo.targetListLan) {
             mToAdapter.dataList.add(
-                SelectItem(context.getString(item.textRes), item.value, true, currentSettingInfo.targetLan.find { it.value === item.value } != null))
+                SelectItem(context.getString(item.textRes), item.value, true, currentSettingInfo.getTargetLan().find { it.value === item.value } != null))
         }
 //        mFromAdapter.notifyItemRangeChanged(0, mFromAdapter.itemCount)
 //        mToAdapter.notifyItemRangeChanged(0, mToAdapter.itemCount)
