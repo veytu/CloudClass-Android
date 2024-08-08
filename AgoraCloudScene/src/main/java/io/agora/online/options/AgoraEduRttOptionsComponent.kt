@@ -165,9 +165,14 @@ class AgoraEduRttOptionsComponent : AbsAgoraEduComponent {
                 .apply(RequestOptions.circleCropTransform()).into(binding.agoraFcrRttTextDialogUserHeader)
             binding.agoraFcrRttTextDialogUserHeaderText.text = if (headImage.isEmpty()) "" else headImage.substring(0, 1)
             binding.agoraFcrRttTextDialogUserName.text = name
-            binding.agoraFcrRttTextDialogTextOrigin.text = originText
+            //语言显示
+            val showDouble = rttOptionsManager?.isShowDoubleLan() ?: false
+            val leve2Text = if(showDouble) resultText else null
+            val leve1Text = if(!showDouble) resultText else originText;
+
+            binding.agoraFcrRttTextDialogTextOrigin.text = leve1Text
             binding.agoraFcrRttTextDialogTextResult.text = resultText
-            binding.agoraFcrRttTextDialogTextResult.visibility = if (resultText.isNullOrEmpty()) View.GONE else View.VISIBLE
+            binding.agoraFcrRttTextDialogTextResult.visibility = if (leve2Text.isNullOrEmpty()) View.GONE else View.VISIBLE
         }
     }
 

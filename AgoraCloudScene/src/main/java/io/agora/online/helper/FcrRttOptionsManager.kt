@@ -355,6 +355,13 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     }
 
     /**
+     * 是否显示双语
+     */
+    fun isShowDoubleLan():Boolean{
+        return settingsManager.currentSettingInfo.isShowDoubleLan()
+    }
+
+    /**
      * 是否开启了转写
      */
     fun isOpenConversion(): Boolean {
