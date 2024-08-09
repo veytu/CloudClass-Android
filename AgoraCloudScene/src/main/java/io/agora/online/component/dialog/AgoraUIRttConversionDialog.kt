@@ -152,10 +152,12 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
                     binding.fcrOnlineEduRttConversionDialogList.scrollToPosition(mAdapter.dataList.size - 1)
                 }
             } else {
-                mAdapter.dataList[mAdapter.dataList.size - 1] = list[list.size - 1]
-                mAdapter.notifyItemChanged(mAdapter.dataList.size - 1)
-                if (mAdapter.searchText.isNullOrEmpty()) {
-                    binding.fcrOnlineEduRttConversionDialogList.scrollToPosition(mAdapter.dataList.size - 1)
+                if(list.isNotEmpty() && mAdapter.dataList.isNotEmpty()) {
+                    mAdapter.dataList[mAdapter.dataList.size - 1] = list[list.size - 1]
+                    mAdapter.notifyItemChanged(mAdapter.dataList.size - 1)
+                    if (mAdapter.searchText.isNullOrEmpty()) {
+                        binding.fcrOnlineEduRttConversionDialogList.scrollToPosition(mAdapter.dataList.size - 1)
+                    }
                 }
             }
             this.searchData(mAdapter.searchText)

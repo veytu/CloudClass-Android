@@ -838,7 +838,7 @@ class RttRecordItem {
         //语言显示
         val leve2Text =
             if (showDoubleLan && enableTargetLan && !currentTargetLan.isNullOrEmpty() && sourceLan != null && sourceLan!!.value !== currentTargetLan!![0].value) targetText else null
-        val leve1Text = if (!showDoubleLan && enableTargetLan) targetText else sourceText
+        val leve1Text = if (!showDoubleLan && enableTargetLan && !targetText.isNullOrEmpty()) targetText else sourceText
         return arrayOf(leve1Text, leve2Text)
     }
 
