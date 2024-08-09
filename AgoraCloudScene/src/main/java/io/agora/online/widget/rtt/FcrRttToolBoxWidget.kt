@@ -69,7 +69,7 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
 
     internal inner class AgoraRttToolBoxWidgetContent(
         val container: ViewGroup, agoraUIProvider: IAgoraUIProvider,
-        agoraEduOptionsComponent: AgoraEduOptionsComponent?, conversionStatusView: ViewGroup?,val subtitleView: AgoraEduRttOptionsComponent?,
+        agoraEduOptionsComponent: AgoraEduOptionsComponent?, conversionStatusView: ViewGroup?, val subtitleView: AgoraEduRttOptionsComponent?,
     ) : IRttOptions {
         private val listener = object : FcrRttOptionsStatusListener() {
             override fun conversionViewReset() {
@@ -149,11 +149,11 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
                     text = container.context.getString(R.string.fcr_dialog_rtt_subtitles_text_listening))
             }
 
-            override fun onMessageChange(recordList: List<RttRecordItem>, currentData: RttRecordItem?) {
-                super.onMessageChange(recordList, currentData)
+            override fun onMessageChange(currentData: RttRecordItem?) {
+                super.onMessageChange(currentData)
                 subtitleView?.visibility = View.VISIBLE
-                subtitleView?.setShowTranslatorsInfo(currentData?.userHeader ?: "", currentData?.userName ?: "",
-                    currentData?.sourceText ?: "", currentData?.targetText)
+                subtitleView?.setShowTranslatorsInfo(currentData?.userHeader ?: "", currentData?.userName ?: "", currentData?.sourceText ?: "",
+                    currentData?.targetText)
             }
         }
 
@@ -162,7 +162,7 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
          */
         private val rttOptionsManager: RttOptionsManager by lazy {
             RttOptionsManager(this).also {
-                subtitleView?.initView(it,agoraUIProvider)
+                subtitleView?.initView(it, agoraUIProvider)
                 it.initView(agoraUIProvider)
                 it.addListener(listener)
             }
@@ -201,12 +201,13 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
          * 重置显示状态
          */
         fun resetStatus() {
-            runOnUiThread{
+            runOnUiThread {
                 val experienceReduceTime = rttOptionsManager.getExperienceReduceTime()
                 binding.agoraRttDialogSubtitlesIcon.isActivated = rttOptionsManager.isOpenSubtitles()
                 binding.agoraRttDialogConversionIcon.isActivated = rttOptionsManager.isOpenConversion()
                 binding.fcrOnlineEduRttConversionDialogTimeLimitHint.text = if (experienceReduceTime > 0) {
-                    MessageFormat.format(container.context.getString(R.string.fcr_dialog_rtt_time_limit_time), rttOptionsManager.getExperienceDefaultTime() / 60000)
+                    MessageFormat.format(container.context.getString(R.string.fcr_dialog_rtt_time_limit_time),
+                        rttOptionsManager.getExperienceDefaultTime() / 60000)
                 } else {
                     container.context.getString(R.string.fcr_dialog_rtt_time_limit_end)
                 }
