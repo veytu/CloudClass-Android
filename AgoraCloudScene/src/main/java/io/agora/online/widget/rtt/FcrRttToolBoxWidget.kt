@@ -152,8 +152,8 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
             override fun onMessageChange(currentData: RttRecordItem?) {
                 super.onMessageChange(currentData)
                 subtitleView?.visibility = View.VISIBLE
-                subtitleView?.setShowTranslatorsInfo(currentData?.userHeader ?: "", currentData?.userName ?: "", currentData?.sourceText ?: "",
-                    currentData?.targetText)
+                val showText = currentData?.getShowText()
+                subtitleView?.setShowTranslatorsInfo(currentData?.userHeader ?: "", currentData?.userName ?: "", showText!![0] ?: "", showText[1])
             }
         }
 

@@ -827,6 +827,21 @@ class RttRecordItem {
      */
     var isFinal: Boolean = false
 
+
+    /**
+     * 获取显示的源文本信息
+     * @returns
+     */
+    fun getShowText(): Array<String?> {
+        //是否设置了翻译语言
+        val enableTargetLan = !currentTargetLan.isNullOrEmpty() && "" !== currentTargetLan!![0].value
+        //语言显示
+        val leve2Text =
+            if (showDoubleLan && enableTargetLan && !currentTargetLan.isNullOrEmpty() && sourceLan != null && sourceLan!!.value !== currentTargetLan!![0].value) targetText else null
+        val leve1Text = if (!showDoubleLan && enableTargetLan) targetText else sourceText
+        return arrayOf(leve1Text, leve2Text)
+    }
+
 }
 
 /**
@@ -1671,8 +1686,8 @@ private class RttUseManager(
             }
         }
         lastRecord = paramsData
-        if (lastRecord != null && rttOptionsManager.isOpenConversion() && allRecordList.isNotEmpty()) {
-            val showItem = if(showRecordList.isNotEmpty()) showRecordList[showRecordList.size - 1] else null
+        if (lastRecord != null && rttOptionsManager.isOpenConversion()) {
+            val showItem = if (showRecordList.isNotEmpty()) showRecordList[showRecordList.size - 1] else null
             if (showItem?.uuid != null && showItem.uuid == lastRecord!!.uuid) {
                 showRecordList[showRecordList.size - 1] = lastRecord!!
             } else {

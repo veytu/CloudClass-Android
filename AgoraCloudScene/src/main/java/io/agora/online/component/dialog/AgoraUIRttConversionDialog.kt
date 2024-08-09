@@ -193,9 +193,11 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
         if (!text.isNullOrEmpty()) {
             mAdapter.searchResultListIndexMap.clear()
             mAdapter.dataList.forEachIndexed { index, rttRecordItem ->
-                findSubstringsIndexes(rttRecordItem.sourceText, text).apply {
-                    addAll(findSubstringsIndexes(if (rttRecordItem.currentTargetLan.isNullOrEmpty()) "" else rttRecordItem.targetText,
-                        text).map { return@map it + (rttRecordItem.sourceText?.length ?: 0) })
+                val showText = rttRecordItem.getShowText()
+                val level1Text = showText[0]
+                val level2Text = showText[1]
+                findSubstringsIndexes(level1Text, text).apply {
+                    addAll(findSubstringsIndexes(if (level2Text.isNullOrEmpty()) "" else level2Text, text).map { return@map it + (level1Text?.length ?: 0) })
                 }.let {
                     if (it.isNotEmpty()) {
                         mAdapter.searchResultListIndexMap[index] = it
@@ -359,15 +361,16 @@ private class RecordAdapter(private val context: Context, val dataList: ArrayLis
                     (if (bean.time == null || bean.time == 0L) null else bean.time)?.let { time -> Date(time) }
                         ?.let { date -> SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA).format(date) }
 
-                if (searchText.isNullOrEmpty() || !searchResultListIndexMap.containsKey(position)) {
-                    it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_origin).text = bean.sourceText
-                    it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_result).text =
-                        if (bean.currentTargetLan.isNullOrEmpty()) "" else bean.targetText
+                val showText = bean.getShowText()
+                val level1Text = showText[0]
+                val level2Text = showText[1]
+                if (!searchResultListIndexMap.containsKey(position)) {
+                    it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_origin).text = level1Text
+                    it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_result).text = level2Text
                 } else {
                     val resultCount = getPreItemResultCount(position)
-                    val sourceSpan = SpannableString(bean.sourceText)
-                    val targetTextSpan =
-                        if (bean.currentTargetLan.isNullOrEmpty() || bean.targetText.isNullOrEmpty()) null else SpannableString(bean.targetText)
+                    val sourceSpan = SpannableString(level1Text)
+                    val targetTextSpan = if (level2Text.isNullOrEmpty()) null else SpannableString(level2Text)
                     searchResultListIndexMap[position]?.forEachIndexed { index, position ->
                         if (resultCount + index == currentSearchResultIndex) {
                             //当前是定位到的位置
