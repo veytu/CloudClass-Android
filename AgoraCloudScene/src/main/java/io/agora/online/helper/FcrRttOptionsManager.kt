@@ -1269,7 +1269,7 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
                  * 开启转写
                  */
                 override fun openConversion() {
-                    if (rttOptionsManager.isOpenSubtitles()) {
+                    if (rttOptionsManager.isOpenConversion()) {
                         openSuccess = true
                         listener.conversionStateChange(true)
                     } else {
@@ -1298,7 +1298,7 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
                  * 关闭转写
                  */
                 override fun closeConversion() {
-                    if (!rttOptionsManager.isOpenSubtitles()) {
+                    if (rttOptionsManager.isOpenConversion()) {
                         if (openSuccess) {
                             rttOptionsManager.sendRequest(false, rttOptionsManager.isOpenSubtitles(),
                                 callback = object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
