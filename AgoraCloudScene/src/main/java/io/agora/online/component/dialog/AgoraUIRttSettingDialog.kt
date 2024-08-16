@@ -290,7 +290,7 @@ private class ContentAdapter(var context: Context) : RecyclerView.Adapter<Recycl
         mToAdapter.dataList.clear()
         for (item in currentSettingInfo.targetListLan) {
             mToAdapter.dataList.add(
-                SelectItem(context.getString(item.textRes), item.value, true, currentSettingInfo.getTargetLan().find { it.value === item.value } != null))
+                SelectItem(context.getString(item.textRes), item.value, true, item.value == currentSettingInfo.getTargetLan().value ))
         }
         mFromAdapter.notifyItemRangeChanged(0, mFromAdapter.itemCount)
         mToAdapter.notifyItemRangeChanged(0, mToAdapter.itemCount)

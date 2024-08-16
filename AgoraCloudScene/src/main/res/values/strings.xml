@@ -581,6 +581,8 @@ Delete your account will result in ….\n
 
     <!--云课堂弹窗-->
     <string name="fcr_dialog_rtt_subtitles">字幕</string>
+    <string name="fcr_dialog_rtt_subtitles_close">关闭字幕</string>
+    <string name="fcr_dialog_rtt_subtitles_myself_close_finish">你已关闭字幕</string>
     <string name="fcr_dialog_rtt_conversion">实时转写</string>
     <string name="fcr_rtt_content_conversion_status_tip">转写中...</string>
     <string name="fcr_dialog_rtt_setting_dialog_title">字幕和转写设置</string>

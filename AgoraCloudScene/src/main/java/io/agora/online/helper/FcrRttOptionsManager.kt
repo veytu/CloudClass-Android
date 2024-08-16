@@ -457,13 +457,13 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     /**
      * 设置转换目标语言
      */
-    fun setTargetLanguage(lan: Array<RttLanguageEnum>) {
+    fun setTargetLanguage(lan: RttLanguageEnum) {
         settingsManager.currentSettingInfo.setTargetLan(lan)
         this.localIsChangeTarget = true
         sendRequest(isOpenConversion(), isOpenSubtitles(), object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
             override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
                 useManager.setLastFinal()
-                this@RttOptionsManager.getManagerListener().targetLanguageChange(lan.toList())
+                this@RttOptionsManager.getManagerListener().targetLanguageChange(settingsManager.currentSettingInfo.getTargetLanList())
             }
         })
     }
@@ -524,7 +524,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
         }
         isSendRequesting = true
         val body = FcrRttChangeOptionsData.formatUseData(openRttConversion, openRttSubtitles, settingsManager.currentSettingInfo.getSourceLan().value,
-            settingsManager.currentSettingInfo.getTargetLan().map { it.value }.toTypedArray())
+            if (openRttConversion || openRttSubtitles)  settingsManager.currentSettingInfo.getTargetLanList().filter { "" != it.value }.map { it.value }.distinct().toTypedArray() else arrayOf())
         val call = AppRetrofitManager.instance().getService(IRttOptionsService::class.java)
             .buildTokens(eduCore?.config?.appId, eduCore?.config?.roomUuid, if (openRttConversion || openRttSubtitles) 1 else 0, body)
         AppRetrofitManager.exc(call, object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
@@ -586,12 +586,13 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
                     //判断是否改变了转写状态
                     if (checkUpdateConversion(it) || localIsChangeTranscribeState && operator.userUuid === localUserInfo?.userUuid) {
                         this.localIsChangeTranscribeState = false
+                        conversionManager.initOpenConversion(1 == it.transcribe)
                         conversionManager.addStateChangeTextMessage(it.transcribe, userInfo, localUserInfo, useManager)
                     }
                     //判断是否开启了翻译(仅当自己生效)
                     if (localIsChangeTarget && operator.userUuid === localUserInfo?.userUuid && !it.languages?.target.isNullOrEmpty() && this.localIsChangeTarget) {
                         this.localIsChangeTarget = false
-                        settingsManager.currentSettingInfo.setTargetLan(
+                        settingsManager.currentSettingInfo.setTargetLanList(
                             it.languages?.target?.map { mapItem -> RttLanguageEnum.values().find { it.value == mapItem }!! }?.toTypedArray()
                                 ?: arrayOf())
                         conversionManager.addTargetLanguageChangeMessage(true, userInfo, useManager)
@@ -604,6 +605,19 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
                             settingsManager.currentSettingInfo.setSourceLan(sourceEnum)
                             conversionManager.addSourceLanguageChangeMessage(userInfo, localUserInfo, useManager, settingsManager, sourceEnum)
                         }
+                    }
+
+                    //是否开启字幕
+                    if (0 == it.subtitle && this.isOpenSubtitles()) {
+                        //重新发起字幕开启
+                        sendRequest(this.isOpenConversion(), openRttSubtitles = this.isOpenSubtitles(),
+                            callback = object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
+                                override fun onSuccess(result: HttpBaseRes<RttChangeOptionsRes>?) {
+                                }
+
+                                override fun onError(httpCode: Int, code: Int, message: String?) {
+                                }
+                            })
                     }
                 }
             }
@@ -780,7 +794,7 @@ class RttRecordItem {
     /**
      * 当前翻译的目标语言
      */
-    var currentTargetLan: Array<RttLanguageEnum>? = null
+    var currentTargetLan: RttLanguageEnum? = null
 
     /**
      * 置信度
@@ -834,10 +848,10 @@ class RttRecordItem {
      */
     fun getShowText(): Array<String?> {
         //是否设置了翻译语言
-        val enableTargetLan = !currentTargetLan.isNullOrEmpty() && "" !== currentTargetLan!![0].value
+        val enableTargetLan = "" !== currentTargetLan?.value
         //语言显示
         val leve2Text =
-            if (showDoubleLan && enableTargetLan && !currentTargetLan.isNullOrEmpty() && sourceLan != null && sourceLan!!.value !== currentTargetLan!![0].value) targetText else null
+            if (showDoubleLan && enableTargetLan && currentTargetLan != null && sourceLan != null && sourceLan!!.value !== currentTargetLan?.value) targetText else null
         val leve1Text = if (!showDoubleLan && enableTargetLan && !targetText.isNullOrEmpty()) targetText else sourceText
         return arrayOf(leve1Text, leve2Text)
     }
@@ -858,7 +872,8 @@ class RttSettingInfo(
     val targetListLan: ArrayList<RttLanguageEnum> = arrayListOf(RttLanguageEnum.NONE, RttLanguageEnum.ZH_CN, RttLanguageEnum.EN_US,
         RttLanguageEnum.JA_JP),
     private var sourceLan: RttLanguageEnum = RttLanguageEnum.ZH_CN,
-    private var targetLan: Array<RttLanguageEnum> = arrayOf(RttLanguageEnum.NONE),
+    private var targetLanList: ArrayList<RttLanguageEnum> = arrayListOf(RttLanguageEnum.NONE),
+    private var targetLan:RttLanguageEnum =RttLanguageEnum.NONE,
     private var showDoubleLan: Boolean = SpUtil.getBoolean(rttOptionsManager.rttOptions.getApplicationContext(),
         "${rttOptionsManager.eduCore?.config?.roomUuid ?: ""}_showDoubleLan", false),
 ) {
@@ -886,14 +901,20 @@ class RttSettingInfo(
     }
 
     fun getSourceLan() = sourceLan
+    fun getTargetLanList() = targetLanList
     fun getTargetLan() = targetLan
     fun isShowDoubleLan() = showDoubleLan
     fun setSourceLan(sourceLan: RttLanguageEnum) {
         this.sourceLan = sourceLan
     }
 
-    fun setTargetLan(targetLan: Array<RttLanguageEnum>) {
-        this.targetLan = if (targetLan.isNotEmpty()) targetLan else arrayOf(RttLanguageEnum.NONE)
+    fun setTargetLan(targetLan: RttLanguageEnum) {
+        this.targetLan = targetLan
+        this.targetLanList.add(targetLan)
+    }
+
+    fun setTargetLanList(targetLan: Array<RttLanguageEnum>) {
+        this.targetLanList = targetLan.toCollection(arrayListOf())
     }
 
     fun setShowDoubleLan(show: Boolean) {
@@ -1214,14 +1235,9 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
             //清除消息
             this.clearHandlerMsg()
 
-            //是否开启双语显示
-            val showTranslateOnly = currentSettingInfo.isShowDoubleLan() && currentSettingInfo.getTargetLan()
-                .isNotEmpty() && RttLanguageEnum.NONE !== currentSettingInfo.getTargetLan()[0] && currentSettingInfo.getSourceLan() !== currentSettingInfo.getTargetLan()[0]
-            val sourceText = recordItem?.sourceText
-            val targetText = recordItem?.targetText
-            val translating = targetText.isNullOrEmpty() && showTranslateOnly
-
-            if (sourceText.isNullOrEmpty() && !translating) {
+            val showText = recordItem?.getShowText()
+            val translating = 2 == (showText?.size ?: 0) && showText?.get(0).isNullOrEmpty() && showText?.get(1).isNullOrEmpty()
+            if (2 != (showText?.size ?: 0) || showText?.get(0).isNullOrEmpty() && !translating) {
                 listener.audioStateNoSpeaking()
             } else if (translating) {
                 listener.audioStateSpeaking()
@@ -1465,7 +1481,7 @@ private class RttSettingManager(private val rttOptionsManager: RttOptionsManager
              */
             override fun setTargetLan(code: String) {
                 RttLanguageEnum.values().find { it.value == code }?.let {
-                    rttOptionsManager.setTargetLanguage(arrayOf(it))
+                    rttOptionsManager.setTargetLanguage(it)
                 }
             }
 
@@ -1648,40 +1664,33 @@ private class RttUseManager(
             //翻译
             "translate" -> {
                 LogX.i(TAG, "Translation:" + GsonUtil.toJson(rttMsgData))
-                val tranList = arrayListOf<RttRecordItemTran>()
+                val last = allRecordList.findLast { it.uid == lastItemByUid }
+                val tranList = last?.targetInfo ?: arrayListOf()
                 val transTextStr = StringBuffer()
-                val lanMapText = hashMapOf<String, String>()
                 rttMsgData.transList.forEach { transItem ->
                     transItem.textsList.forEach { text ->
                         LogX.i(TAG, "Translation:$lastItemByUid$$$$$$$$$text")
                         transTextStr.append(text)
                     }
-                    tranList.add(RttRecordItemTran().apply {
-                        language = RttLanguageEnum.values().find { it.value == transItem.lang }
-                        text = transTextStr.toString()
-                    })
-                    lanMapText[transItem.lang] =
-                        if (lanMapText.contains(transItem.lang)) lanMapText[transItem.lang] + transTextStr.toString() else transTextStr.toString()
+                    tranList.find { transItem.lang == it.language?.value }.let {find->
+                        if(find != null){
+                            find.text = transTextStr.toString()
+                        }else{
+                            tranList.add(RttRecordItemTran().apply {
+                                language = RttLanguageEnum.values().find { it.value == transItem.lang }
+                                text = transTextStr.toString()
+                            })
+                        }
+                    }
                     transTextStr.setLength(0)
                 }
 
                 paramsData = allRecordList.findLast { it.uid == lastItemByUid }?.apply {
-                    //处理拼接数据，当然，当前只有一个目标语言，为了扩展使用以下方式
-                    transTextStr.setLength(0)
-                    currentTargetLan?.forEach { item ->
-                        if (lanMapText.contains(item.value)) {
-                            if (transTextStr.isNotEmpty()) {
-                                transTextStr.append("\n")
-                            }
-                            transTextStr.append(lanMapText[item.value])
-                        }
-                    }
                     currentTargetLan = settingInfo.getTargetLan()
                     uuid = UUID.randomUUID().toString()
                     showDoubleLan = settingInfo.isShowDoubleLan()
                     targetInfo = tranList
-                    targetText = transTextStr.toString()
-                    transTextStr.setLength(0)
+                    targetText = tranList.find { item-> (item.language?.value ?:"") == currentTargetLan?.value }?.text
                 }
             }
         }

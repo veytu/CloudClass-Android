@@ -9,6 +9,7 @@ import io.agora.agoraeducore.core.internal.framework.data.EduBaseUserInfo
 import io.agora.agoraeducore.extensions.widgets.AgoraBaseWidget
 import io.agora.online.R
 import io.agora.online.component.common.IAgoraUIProvider
+import io.agora.online.component.toast.AgoraUIToast
 import io.agora.online.databinding.FcrOnlineToolBoxWidgetContentBinding
 import io.agora.online.helper.FcrRttOptionsStatusListener
 import io.agora.online.helper.IRttOptions
@@ -95,6 +96,9 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
                 super.subtitlesStateChange(toOpen)
                 agoraEduOptionsComponent?.hiddenRtt()
                 resetStatus()
+                if(!toOpen){
+                    AgoraUIToast.showDefaultToast(container.context,container.context.getString(R.string.fcr_dialog_rtt_subtitles_myself_close_finish))
+                }
             }
 
             override fun conversionStateChange(toOpen: Boolean) {
@@ -179,9 +183,11 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
             binding.agoraRttDialogSubtitles.setOnClickListener {
                 if (this.rttOptionsManager.isOpenSubtitles()) {
                     binding.agoraRttDialogSubtitlesIcon.isActivated = false
+                    binding.agoraRttDialogSubtitlesText.setText(R.string.fcr_dialog_rtt_subtitles_close)
                     this.rttOptionsManager.closeSubtitles()
                 } else {
                     binding.agoraRttDialogSubtitlesIcon.isActivated = true
+                    binding.agoraRttDialogSubtitlesText.setText(R.string.fcr_dialog_rtt_subtitles)
                     this.rttOptionsManager.openSubtitles()
                 }
             }
@@ -204,6 +210,7 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
             runOnUiThread {
                 val experienceReduceTime = rttOptionsManager.getExperienceReduceTime()
                 binding.agoraRttDialogSubtitlesIcon.isActivated = rttOptionsManager.isOpenSubtitles()
+                binding.agoraRttDialogSubtitlesText.setText(if(rttOptionsManager.isOpenSubtitles())R.string.fcr_dialog_rtt_subtitles_close else R.string.fcr_dialog_rtt_subtitles)
                 binding.agoraRttDialogConversionIcon.isActivated = rttOptionsManager.isOpenConversion()
                 binding.fcrOnlineEduRttConversionDialogTimeLimitHint.text = if (experienceReduceTime > 0) {
                     MessageFormat.format(container.context.getString(R.string.fcr_dialog_rtt_time_limit_time),

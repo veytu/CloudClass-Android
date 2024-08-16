@@ -47,6 +47,7 @@
                 android:src="@drawable/agora_option_icon_rtt_subtitles" />
 
             <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/agora_rtt_dialog_subtitles_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:gravity="center"
@@ -78,6 +79,7 @@
                 android:src="@drawable/agora_option_icon_rtt_conversion" />
 
             <androidx.appcompat.widget.AppCompatTextView
+                android:id="@+id/agora_rtt_dialog_conversion_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:gravity="center"

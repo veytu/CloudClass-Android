@@ -405,8 +405,7 @@ private class RecordAdapter(private val context: Context, val dataList: ArrayLis
                 }
 
                 it.findViewById<AppCompatTextView>(R.id.agora_fcr_rtt_text_dialog_text_result).apply {
-                    visibility = if (bean.currentTargetLan.isNullOrEmpty() || bean.currentTargetLan!!.contains(
-                            RttLanguageEnum.NONE)) View.GONE else View.VISIBLE
+                    visibility = if (RttLanguageEnum.NONE == bean.currentTargetLan) View.GONE else View.VISIBLE
                 }
             }
         } else {
