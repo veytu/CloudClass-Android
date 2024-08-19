@@ -1124,6 +1124,8 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
 
                 messageWhatListening -> {
                     listener.audioStateNoSpeaking()
+                    //显示两秒正在聆听
+                    sendEmptyMessageDelayed(messageWhatNoSpeaking, 2000)
                 }
 
                 messageWhatNoSpeaking -> {
