@@ -107,8 +107,8 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     private val steamHandler = object : StreamHandler() {
         override fun onStreamMessage(channelId: String, streamId: Int, data: ByteArray?) {
             super.onStreamMessage(channelId, streamId, data)
-            //不允许使用或者已到体验时间就不在回调
-            if (!isAllowUseRtt() || (!conversionManager.isOpenConversion() && !subtitlesManager.isOpenSubtitles())) {
+            //不允许使用或者已到体验时间就不在回调，在分组中也不对消息数据进行处理
+            if (!isAllowUseRtt() || (!conversionManager.isOpenConversion() && !subtitlesManager.isOpenSubtitles()) || eduCore?.eduContextPool()?.groupContext()?.groupInfo != null) {
                 return
             }
             val parseFrom = AgoraSpeech2TextProtobuffer.Text.parseFrom(data)
