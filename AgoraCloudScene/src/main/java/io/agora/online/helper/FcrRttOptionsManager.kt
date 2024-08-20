@@ -30,6 +30,7 @@ import io.agora.online.component.dialog.AgoraUIRttSettingDialogListener
 import io.agora.online.component.dialog.ConversionOptionsInterface
 import io.agora.online.component.toast.AgoraUIToast
 import io.agora.online.easeim.utils.TAG
+import io.agora.online.easeim.view.ui.widget.RoomType
 import io.agora.online.util.MultiLanguageUtil
 import io.agora.online.util.SpUtil
 import io.agora.rtc.speech2text.AgoraSpeech2TextProtobuffer
@@ -108,7 +109,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
         override fun onStreamMessage(channelId: String, streamId: Int, data: ByteArray?) {
             super.onStreamMessage(channelId, streamId, data)
             //不允许使用或者已到体验时间就不在回调，在分组中也不对消息数据进行处理
-            if (!isAllowUseRtt() || (!conversionManager.isOpenConversion() && !subtitlesManager.isOpenSubtitles()) || eduCore?.eduContextPool()?.groupContext()?.groupInfo != null) {
+            if (!isAllowUseRtt() || (!conversionManager.isOpenConversion() && !subtitlesManager.isOpenSubtitles()) || checkUserInSubRoom()) {
                 return
             }
             val parseFrom = AgoraSpeech2TextProtobuffer.Text.parseFrom(data)
@@ -299,6 +300,13 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
                 listenerList.forEach { it.onMessageChange(currentData) }
             }
         }
+    }
+
+    /**
+     * 检测用户是否在分组中
+     */
+    fun checkUserInSubRoom():Boolean{
+       return eduCore?.eduContextPool()?.roomContext()?.getRoomInfo()?.roomType?.value == RoomType.GROUPING_CLASS.value
     }
 
     /**

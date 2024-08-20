@@ -362,7 +362,7 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
             popupViewRoster?.initView(agoraUIProvider)
         }
         //Rtt功能只在非分组状态下使用
-        if(eduContext?.groupContext()?.groupInfo == null){
+        if(eduContext?.roomContext()?.getRoomInfo()?.roomType?.value == RoomType.GROUPING_CLASS.value){
             binding.optionItemRtt.visibility = VISIBLE
         }else{
             binding.optionItemRtt.visibility = GONE
