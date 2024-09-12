@@ -54,7 +54,7 @@
 
             <androidx.appcompat.widget.AppCompatTextView
                 android:id="@+id/fcr_online_edu_rtt_conversion_dialog_time_limit_reduce"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:text="@string/fcr_dialog_rtt_dialog_time_limit_reduce"
                 android:textColor="@color/fcr_blue_4262"
@@ -63,9 +63,13 @@
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintLeft_toRightOf="@id/fcr_online_edu_rtt_conversion_dialog_title"
                 app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintRight_toLeftOf="@id/clSearch"
+                android:ellipsize="end"
+                android:maxLines="1"
                 tools:visibility="visible" />
 
             <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/clSearch"
                 android:layout_width="0dp"
                 android:layout_height="@dimen/dp_32"
                 app:layout_constraintLeft_toRightOf="@id/fcr_online_edu_rtt_conversion_dialog_time_limit_reduce"
@@ -73,6 +77,7 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintWidth_percent="0.5"
+                android:layout_marginRight="@dimen/dp_5"
                 android:orientation="horizontal">
 
                 <androidx.appcompat.widget.LinearLayoutCompat
