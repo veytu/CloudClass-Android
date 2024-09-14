@@ -206,7 +206,8 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
                     }
                 }
             }
-            mAdapter.currentSearchResultIndex = mAdapter.currentSearchResultIndex.coerceAtMost(mAdapter.itemCount)
+            mAdapter.currentSearchResultIndex =
+                mAdapter.currentSearchResultIndex.coerceAtMost(mAdapter.itemCount - 1).coerceAtMost(mAdapter.getSumResultCount() - 1).coerceAtLeast(0)
             binding.fcrOnlineEduRttConversionDialogSearchClear.visibility = View.VISIBLE
             binding.fcrOnlineEduRttConversionDialogSearchCount.visibility = View.VISIBLE
             binding.fcrOnlineEduRttConversionDialogOptionsChangeLoc.visibility = View.VISIBLE
@@ -252,7 +253,7 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
      */
     @SuppressLint("SetTextI18n")
     private fun changeShowSearchResult() {
-        binding.fcrOnlineEduRttConversionDialogSearchCount.text = "${mAdapter.currentSearchResultIndex + 1}/${mAdapter.getSumResultCount()}"
+        binding.fcrOnlineEduRttConversionDialogSearchCount.text = "${if(mAdapter.getSumResultCount() == 0)  "0" else (mAdapter.currentSearchResultIndex + 1)}/${mAdapter.getSumResultCount()}"
         binding.fcrOnlineEduRttConversionDialogOptionsGoPre.isEnabled = mAdapter.currentSearchResultIndex > 0
         binding.fcrOnlineEduRttConversionDialogOptionsGoNext.isEnabled = mAdapter.currentSearchResultIndex < (mAdapter.getSumResultCount() - 1)
         mAdapter.notifyItemRangeChanged(0, mAdapter.itemCount)

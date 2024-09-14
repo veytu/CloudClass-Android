@@ -636,4 +636,6 @@ Delete your account will result in ….\n
     <string name="fcr_dialog_rtt_language_es_es">西班牙语</string>
     <string name="fcr_dialog_rtt_language_tr_tr">土耳其语</string>
     <string name="fcr_dialog_rtt_language_vi_vn">越南语</string>
+    <string name="fcr_dialog_rtt_oher_change_source_hint_cancel">Ignore</string>
+    <string name="fcr_dialog_rtt_oher_change_source_hint_confirm">View</string>
 </resources>

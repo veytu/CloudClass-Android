@@ -24,6 +24,7 @@ import io.agora.agoraeducore.core.internal.framework.utils.GsonUtil
 import io.agora.agoraeducore.core.internal.log.LogX
 import io.agora.online.R
 import io.agora.online.component.common.IAgoraUIProvider
+import io.agora.online.component.dialog.AgoraUIDialogBuilder
 import io.agora.online.component.dialog.AgoraUIRttConversionDialogBuilder
 import io.agora.online.component.dialog.AgoraUIRttSettingBuilder
 import io.agora.online.component.dialog.AgoraUIRttSettingDialogListener
@@ -592,10 +593,10 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
                     //用户信息
                     val localUserInfo = eduCore?.eduContextPool()?.userContext()?.getLocalUserInfo()
                     //判断是否改变了转写状态
-                    if (checkUpdateConversion(it) || localIsChangeTranscribeState && operator.userUuid === localUserInfo?.userUuid) {
+                    if (checkUpdateConversion(it) || localIsChangeTranscribeState && operator.userUuid !== localUserInfo?.userUuid) {
                         this.localIsChangeTranscribeState = false
-                        conversionManager.initOpenConversion(1 == it.transcribe)
                         conversionManager.addStateChangeTextMessage(it.transcribe, userInfo, localUserInfo, useManager)
+                        conversionManager.initOpenConversion(1 == it.transcribe)
                     }
                     //判断是否开启了翻译(仅当自己生效)
                     if (localIsChangeTarget && operator.userUuid === localUserInfo?.userUuid && !it.languages?.target.isNullOrEmpty() && this.localIsChangeTarget) {
@@ -1298,6 +1299,7 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
                     if (rttOptionsManager.isOpenConversion()) {
                         openSuccess = true
                         listener.conversionStateChange(true)
+                        rttOptionsManager.startExperience()
                     } else {
                         if (!openSuccess) {
                             rttOptionsManager.sendRequest(true, rttOptionsManager.isOpenSubtitles(),
@@ -1393,7 +1395,6 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
         openSuccess = state
         if (openSuccess) {
             listener.conversionViewReset()
-            rttConversionDialog.show(arrayListOf())
         }
     }
 
@@ -1408,7 +1409,9 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
      * 新增转写数据
      */
     fun updateShowList(list: List<RttRecordItem>) {
-        rttConversionDialog.updateShowList(list)
+        try {
+            rttConversionDialog.updateShowList(list)
+        }catch (ignore:Exception){}
     }
 
     /**
@@ -1416,6 +1419,7 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
      */
     fun addStateChangeTextMessage(transcribe: Int, userInfo: EduBaseUserInfo, localUserInfo: AgoraEduContextUserInfo?, useManager: RttUseManager) {
         val toOpen = 1 == transcribe
+        val appContext = rttOptionsManager.rttOptions.getApplicationContext()
         val textContent = "${rttOptionsManager.formatRoleName(userInfo, localUserInfo)}${
             rttOptionsManager.rttOptions.getApplicationContext()
                 .getString(if (toOpen) R.string.fcr_dialog_rtt_text_conversion_state_open else R.string.fcr_dialog_rtt_text_conversion_state_close)
@@ -1427,9 +1431,17 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
                 if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open else R.string.fcr_dialog_rtt_toast_conversion_state_close
             })
         }"
-        if (rttOptionsManager.isOpenConversion() || rttOptionsManager.isOpenSubtitles()) {
-            AgoraUIToast.showDefaultToast(rttOptionsManager.rttOptions.getApplicationContext(), toastContent)
+        if (!rttOptionsManager.isOpenConversion() && toOpen) {
+            rttOptionsManager.rttOptions.runOnUiThread{
+                AgoraUIDialogBuilder(rttOptionsManager.rttOptions.getActivityContext()).title(appContext.resources.getString(R.string.fcr_dialog_rtt_conversion))
+                    .message(textContent).messagePaddingHorizontal(appContext.resources.getDimensionPixelOffset(R.dimen.dp_10))
+                    .negativeText(appContext.resources.getString(R.string.fcr_dialog_rtt_oher_change_source_hint_cancel))
+                    .positiveText(appContext.resources.getString(R.string.fcr_dialog_rtt_oher_change_source_hint_confirm)).positiveClick {
+                        openConversion(useManager.getShowRecordList())
+                    }.build().show()
+            }
         }
+        AgoraUIToast.showDefaultToast(appContext, toastContent)
         useManager.disposeDataChangeSourceLanguage(userInfo, textContent)
         rttOptionsManager.rttOptions.runOnUiThread { updateShowList(useManager.getShowRecordList()) }
         LogX.i(TAG, "changeConversionState result=$textContent}")
