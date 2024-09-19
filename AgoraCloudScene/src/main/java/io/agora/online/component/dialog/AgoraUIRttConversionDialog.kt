@@ -72,9 +72,9 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
     private fun initView() {
         binding.fcrOnlineEduRttConversionDialogChangeStatus.setOnClickListener {
             if (it.isActivated) {
-                closeConversion()
+                closeConversion(true)
             } else {
-                openConversion()
+                openConversion(true)
             }
         }
         binding.fcrOnlineEduRttConversionDialogOptionsSetting.setOnClickListener {
@@ -125,7 +125,7 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
                 binding.fcrOnlineEduRttConversionDialogTimeLimitHint.setText(R.string.fcr_dialog_rtt_time_limit_end)
                 binding.fcrOnlineEduRttConversionDialogTimeLimitHint.setBackgroundResource(R.drawable.agora_options_rtt_time_limit_bg_disable)
                 binding.fcrOnlineEduRttConversionDialogTimeLimitReduce.visibility = View.GONE
-                closeConversion()
+                closeConversion(true)
             } else {
                 binding.fcrOnlineEduRttConversionDialogTimeLimitHint.setText(R.string.fcr_dialog_rtt_time_limit)
                 binding.fcrOnlineEduRttConversionDialogTimeLimitHint.setBackgroundResource(R.drawable.agora_options_rtt_time_limit_bg)
@@ -165,11 +165,24 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
     }
 
     /**
+     * 修改按钮状态
+     */
+    fun changeShowButton(toState:Boolean){
+        if(toState){
+            openConversion(false)
+        }else{
+            closeConversion(false)
+        }
+    }
+
+    /**
      * 开始转写
      */
-    private fun openConversion() {
+    private fun openConversion(sendRequest:Boolean) {
         if (binding.fcrOnlineEduRttConversionDialogChangeStatus.isEnabled) {
-            optionsCallback?.openConversion()
+            if (sendRequest) {
+                optionsCallback?.openConversion()
+            }
             binding.fcrOnlineEduRttConversionDialogChangeStatus.isActivated = true
             binding.fcrOnlineEduRttConversionDialogChangeStatus.setText(R.string.fcr_dialog_rtt_dialog_conversion_close)
             binding.fcrOnlineEduRttConversionDialogChangeStatus.setTextColor(ContextCompat.getColor(context, R.color.fcr_text_red))
@@ -179,8 +192,10 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
     /**
      * 关闭转写
      */
-    private fun closeConversion() {
-        optionsCallback?.closeConversion()
+    private fun closeConversion(sendRequest:Boolean) {
+        if (sendRequest) {
+            optionsCallback?.closeConversion()
+        }
         binding.fcrOnlineEduRttConversionDialogChangeStatus.isActivated = false
         binding.fcrOnlineEduRttConversionDialogChangeStatus.setText(R.string.fcr_dialog_rtt_dialog_conversion_open)
         binding.fcrOnlineEduRttConversionDialogChangeStatus.setTextColor(ContextCompat.getColor(context, R.color.fcr_white))
@@ -228,7 +243,7 @@ class AgoraUIRttConversionDialog(context: Context) : Dialog(context, R.style.ago
     fun show(list: List<RttRecordItem>) {
         mAdapter.dataList.clear()
         mAdapter.dataList.addAll(list)
-        openConversion()
+        openConversion(true)
         super.show()
     }
 

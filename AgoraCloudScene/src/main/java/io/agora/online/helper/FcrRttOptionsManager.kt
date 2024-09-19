@@ -593,13 +593,13 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
                     //用户信息
                     val localUserInfo = eduCore?.eduContextPool()?.userContext()?.getLocalUserInfo()
                     //判断是否改变了转写状态
-                    if (checkUpdateConversion(it) || localIsChangeTranscribeState && operator.userUuid !== localUserInfo?.userUuid) {
+                    if (checkUpdateConversion(it) || localIsChangeTranscribeState && operator.userUuid != localUserInfo?.userUuid) {
                         this.localIsChangeTranscribeState = false
                         conversionManager.addStateChangeTextMessage(it.transcribe, userInfo, localUserInfo, useManager)
                         conversionManager.initOpenConversion(1 == it.transcribe)
                     }
                     //判断是否开启了翻译(仅当自己生效)
-                    if (localIsChangeTarget && operator.userUuid === localUserInfo?.userUuid && !it.languages?.target.isNullOrEmpty() && this.localIsChangeTarget) {
+                    if (localIsChangeTarget && operator.userUuid == localUserInfo?.userUuid && !it.languages?.target.isNullOrEmpty() && this.localIsChangeTarget) {
                         this.localIsChangeTarget = false
                         settingsManager.currentSettingInfo.setTargetLanList(
                             it.languages?.target?.map { mapItem -> RttLanguageEnum.values().find { it.value == mapItem }!! }?.toTypedArray()
@@ -607,7 +607,7 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
                         conversionManager.addTargetLanguageChangeMessage(true, userInfo, useManager)
                     }
                     //判断是否修改了声源语言
-                    if (!it.languages?.source.isNullOrEmpty() && it.languages?.source != settingsManager.currentSettingInfo.getSourceLan().value || localIsChangeSourceLan && operator.userUuid === localUserInfo?.userUuid) {
+                    if (!it.languages?.source.isNullOrEmpty() && it.languages?.source != settingsManager.currentSettingInfo.getSourceLan().value || localIsChangeSourceLan && operator.userUuid == localUserInfo?.userUuid) {
                         this.localIsChangeSourceLan = false
                         val sourceEnum = RttLanguageEnum.values().find { item -> item.value == it.languages?.source }
                         if (sourceEnum != null) {
@@ -857,10 +857,10 @@ class RttRecordItem {
      */
     fun getShowText(): Array<String?> {
         //是否设置了翻译语言
-        val enableTargetLan = "" !== currentTargetLan?.value
+        val enableTargetLan = "" != currentTargetLan?.value
         //语言显示
         val leve2Text =
-            if (showDoubleLan && enableTargetLan && currentTargetLan != null && sourceLan != null && sourceLan!!.value !== currentTargetLan?.value) targetText else null
+            if (showDoubleLan && enableTargetLan && currentTargetLan != null && sourceLan != null && sourceLan!!.value != currentTargetLan?.value) targetText else null
         val leve1Text = if (!showDoubleLan && enableTargetLan && !targetText.isNullOrEmpty()) targetText else sourceText
         return arrayOf(leve1Text, leve2Text)
     }
@@ -1393,9 +1393,16 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
      */
     fun initOpenConversion(state: Boolean) {
         openSuccess = state
-        if (openSuccess) {
-            listener.conversionViewReset()
-        }
+       rttOptionsManager.rttOptions.runOnUiThread{
+           listener.conversionViewReset()
+           listener.conversionStateChange(openSuccess)
+           rttConversionDialog.changeShowButton(openSuccess)
+           if(openSuccess){
+               rttOptionsManager.startExperience()
+           }else{
+               rttOptionsManager.stopExperience()
+           }
+       }
     }
 
     /**
@@ -1431,7 +1438,7 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
                 if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open else R.string.fcr_dialog_rtt_toast_conversion_state_close
             })
         }"
-        if (!rttOptionsManager.isOpenConversion() && toOpen) {
+        if (!rttOptionsManager.isOpenConversion() && toOpen && userInfo.userUuid != localUserInfo?.userUuid) {
             rttOptionsManager.rttOptions.runOnUiThread{
                 AgoraUIDialogBuilder(rttOptionsManager.rttOptions.getActivityContext()).title(appContext.resources.getString(R.string.fcr_dialog_rtt_conversion))
                     .message(textContent).messagePaddingHorizontal(appContext.resources.getDimensionPixelOffset(R.dimen.dp_10))
