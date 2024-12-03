@@ -126,7 +126,8 @@ private class SelectListAdapter(var context: Context, var dataList: MutableList<
                 } else {
                     currentSelect
                 }
-                dataList.find { it.code == lastSelect!!.code }?.select = false
+                dataList.forEach { it.select = false }
+//                dataList.find { it.code == lastSelect!!.code }?.select = false
                 item.select = true
                 currentSelect = item
                 onSelectChangedListener?.onChanged(currentSelect!!)

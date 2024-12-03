@@ -42,6 +42,7 @@ import io.agora.online.component.toast.AgoraUIToast
 import io.agora.online.component.whiteboard.data.AgoraEduApplianceData
 import io.agora.online.config.FcrUIConfig
 import io.agora.online.databinding.FcrOnlineEduOptionsComponentBinding
+import io.agora.online.helper.RttOptionsManager
 import io.agora.online.impl.chat.ChatPopupWidgetListener
 import io.agora.online.impl.whiteboard.bean.AgoraBoardGrantData
 import io.agora.online.impl.whiteboard.bean.AgoraBoardInteractionPacket
@@ -464,6 +465,8 @@ class AgoraEduOptionsComponent : AbsAgoraEduConfigComponent<FcrUIConfig>, IWhite
     }
 
     private fun showItem(item: View?) {
+        //如果体验结束的话，那么则隐藏弹窗view,做收口处理
+        rttToolBoxWidget?.resetShowDialogIfEnd()
         itemContainer.removeAllViews()
         itemContainer.addView(item)
     }

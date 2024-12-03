@@ -74,4 +74,11 @@ class FcrRttToolBoxComponent : AbsAgoraEduComponent {
         eduContext?.widgetContext()?.addWidgetActiveObserver(widgetActiveObserver, WIDGETS_RTT_ID)
         eduContext?.widgetContext()?.setWidgetActive(WIDGETS_RTT_ID, AgoraWidgetRoomPropsUpdateReq(state = 1))
     }
+
+    /**
+     * 如果体验结束的话，那么则隐藏弹窗view
+     */
+    fun resetShowDialogIfEnd() {
+        widget?.resetShowDialogIfEnd()
+    }
 }

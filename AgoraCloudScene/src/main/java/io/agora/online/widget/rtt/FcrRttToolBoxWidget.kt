@@ -67,6 +67,13 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
         contentView?.resetStatus()
     }
 
+    /**
+     * 如果体验结束的话，那么则隐藏弹窗view
+     */
+    fun resetShowDialogIfEnd() {
+        contentView?.resetShowDialogIfEnd()
+    }
+
 
     internal inner class AgoraRttToolBoxWidgetContent(
         val container: ViewGroup, agoraUIProvider: IAgoraUIProvider,
@@ -96,8 +103,8 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
                 super.subtitlesStateChange(toOpen)
                 agoraEduOptionsComponent?.hiddenRtt()
                 resetStatus()
-                if(!toOpen){
-                    AgoraUIToast.showDefaultToast(container.context,container.context.getString(R.string.fcr_dialog_rtt_subtitles_myself_close_finish))
+                if (!toOpen) {
+                    AgoraUIToast.showDefaultToast(container.context, container.context.getString(R.string.fcr_dialog_rtt_subtitles_myself_close_finish))
                 }
             }
 
@@ -114,17 +121,26 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
 
             override fun audioStateNotAllowUse() {
                 super.audioStateNotAllowUse()
-                subtitleView?.resetShowPosition()
-                subtitleView?.visibility = View.VISIBLE
-                subtitleView?.setShowStatusInfo(showProgress = false, showIcon = false,
-                    text = container.context.getString(R.string.fcr_dialog_rtt_time_limit_status_not_allow_use))
+                if (rttOptionsManager.experienceReduceTimeZero()) {
+                    subtitleView?.resetShowPosition()
+                    subtitleView?.visibility = View.GONE
+                } else {
+                    subtitleView?.resetShowPosition()
+                    subtitleView?.visibility = View.VISIBLE
+                    subtitleView?.setShowStatusInfo(
+                        showProgress = false, showIcon = false,
+                        text = container.context.getString(R.string.fcr_dialog_rtt_time_limit_status_not_allow_use)
+                    )
+                }
             }
 
             override fun audioStateNoSpeaking() {
                 super.audioStateNoSpeaking()
                 subtitleView?.visibility = View.VISIBLE
-                subtitleView?.setShowStatusInfo(showProgress = false, showIcon = false,
-                    text = container.context.getString(R.string.fcr_dialog_rtt_subtitles_text_no_one_speaking))
+                subtitleView?.setShowStatusInfo(
+                    showProgress = false, showIcon = false,
+                    text = container.context.getString(R.string.fcr_dialog_rtt_subtitles_text_no_one_speaking)
+                )
             }
 
             override fun audioStateNoSpeakingMoreTime() {
@@ -136,21 +152,27 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
                 super.audioStateOpening()
                 subtitleView?.resetShowPosition()
                 subtitleView?.visibility = View.VISIBLE
-                subtitleView?.setShowStatusInfo(showProgress = true, showIcon = false,
-                    text = container.context.getString(R.string.fcr_dialog_rtt_dialog_subtitles_status_opening))
+                subtitleView?.setShowStatusInfo(
+                    showProgress = true, showIcon = false,
+                    text = container.context.getString(R.string.fcr_dialog_rtt_dialog_subtitles_status_opening)
+                )
             }
 
             override fun audioStateShowSettingHint() {
                 super.audioStateShowSettingHint()
-                subtitleView?.setShowStatusInfo(showProgress = false, showIcon = false,
-                    text = container.context.getString(R.string.fcr_dialog_rtt_dialog_subtitles_status_opening_success_hint))
+                subtitleView?.setShowStatusInfo(
+                    showProgress = false, showIcon = false,
+                    text = container.context.getString(R.string.fcr_dialog_rtt_dialog_subtitles_status_opening_success_hint)
+                )
             }
 
             override fun audioStateSpeaking() {
                 super.audioStateSpeaking()
                 subtitleView?.visibility = View.VISIBLE
-                subtitleView?.setShowStatusInfo(showProgress = false, showIcon = true,
-                    text = container.context.getString(R.string.fcr_dialog_rtt_subtitles_text_listening))
+                subtitleView?.setShowStatusInfo(
+                    showProgress = false, showIcon = true,
+                    text = container.context.getString(R.string.fcr_dialog_rtt_subtitles_text_listening)
+                )
             }
 
             override fun onMessageChange(currentData: RttRecordItem?) {
@@ -210,11 +232,13 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
             runOnUiThread {
                 val experienceReduceTime = rttOptionsManager.getExperienceReduceTime()
                 binding.agoraRttDialogSubtitlesIcon.isActivated = rttOptionsManager.isOpenSubtitles()
-                binding.agoraRttDialogSubtitlesText.setText(if(rttOptionsManager.isOpenSubtitles())R.string.fcr_dialog_rtt_subtitles_close else R.string.fcr_dialog_rtt_subtitles)
+                binding.agoraRttDialogSubtitlesText.setText(if (rttOptionsManager.isOpenSubtitles()) R.string.fcr_dialog_rtt_subtitles_close else R.string.fcr_dialog_rtt_subtitles)
                 binding.agoraRttDialogConversionIcon.isActivated = rttOptionsManager.isOpenConversion()
                 binding.fcrOnlineEduRttConversionDialogTimeLimitHint.text = if (experienceReduceTime > 0) {
-                    MessageFormat.format(container.context.getString(R.string.fcr_dialog_rtt_time_limit_time),
-                        rttOptionsManager.getExperienceDefaultTime() / 60000)
+                    MessageFormat.format(
+                        container.context.getString(R.string.fcr_dialog_rtt_time_limit_time),
+                        rttOptionsManager.getExperienceDefaultTime() / 60000
+                    )
                 } else {
                     container.context.getString(R.string.fcr_dialog_rtt_time_limit_end)
                 }
@@ -231,6 +255,16 @@ class FcrRttToolBoxWidget : AgoraBaseWidget() {
             binding.agoraRttDialogSubtitles.alpha = if (allowUse) 1F else 0.8F
             binding.agoraRttDialogConversion.alpha = if (allowUse) 1F else 0.8F
         }
+
+        /**
+         * 如果体验结束的话，那么则隐藏弹窗view
+         */
+        fun resetShowDialogIfEnd() {
+            if (!rttOptionsManager.isAllowUseRtt() || rttOptionsManager.experienceReduceTimeZero()) {
+                subtitleView?.visibility = View.GONE
+            }
+        }
+
 
         fun dispose() {
             container.removeView(binding.root)

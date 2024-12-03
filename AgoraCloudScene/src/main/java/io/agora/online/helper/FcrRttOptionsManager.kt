@@ -141,7 +141,8 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
             super.onRoomPropertiesUpdated(properties, cause, operator)
             LogX.i(TAG, "onRoomPropertiesUpdated properties=${GsonUtil.toJson(properties)}, cause=${
                 cause?.let { GsonUtil.toJson(it) }
-            }, operator=${operator?.let { GsonUtil.toJson(it) }}")
+            }, operator=${operator?.let { GsonUtil.toJson(it) }}"
+            )
         }
     }
 
@@ -306,8 +307,8 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
     /**
      * 检测用户是否在分组中
      */
-    fun checkUserInSubRoom():Boolean{
-       return eduCore?.eduContextPool()?.roomContext()?.getRoomInfo()?.roomType?.value == RoomType.GROUPING_CLASS.value
+    fun checkUserInSubRoom(): Boolean {
+        return eduCore?.eduContextPool()?.roomContext()?.getRoomInfo()?.roomType?.value == RoomType.GROUPING_CLASS.value
     }
 
     /**
@@ -533,7 +534,8 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
         }
         isSendRequesting = true
         val body = FcrRttChangeOptionsData.formatUseData(openRttConversion, openRttSubtitles, settingsManager.currentSettingInfo.getSourceLan().value,
-            if (openRttConversion || openRttSubtitles)  settingsManager.currentSettingInfo.getTargetLanList().filter { "" != it.value }.map { it.value }.distinct().toTypedArray() else arrayOf())
+            if (openRttConversion || openRttSubtitles) settingsManager.currentSettingInfo.getTargetLanList().filter { "" != it.value }.map { it.value }.distinct().toTypedArray() else arrayOf()
+        )
         val call = AppRetrofitManager.instance().getService(IRttOptionsService::class.java)
             .buildTokens(eduCore?.config?.appId, eduCore?.config?.roomUuid, if (openRttConversion || openRttSubtitles) 1 else 0, body)
         AppRetrofitManager.exc(call, object : HttpCallback<HttpBaseRes<RttChangeOptionsRes>>() {
@@ -603,7 +605,8 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
                         this.localIsChangeTarget = false
                         settingsManager.currentSettingInfo.setTargetLanList(
                             it.languages?.target?.map { mapItem -> RttLanguageEnum.values().find { it.value == mapItem }!! }?.toTypedArray()
-                                ?: arrayOf())
+                                ?: arrayOf()
+                        )
                         conversionManager.addTargetLanguageChangeMessage(true, userInfo, useManager)
                     }
                     //判断是否修改了声源语言
@@ -690,6 +693,12 @@ class RttOptionsManager(internal val rttOptions: IRttOptions) {
         }) "
     }
 
+    /**
+     * 体验时间是否用完
+     */
+    fun experienceReduceTimeZero(): Boolean {
+        return useManager.experienceReduceTimeZero()
+    }
 }
 
 /**
@@ -878,13 +887,17 @@ class RttRecordItem {
 class RttSettingInfo(
     var rttOptionsManager: RttOptionsManager,
     val sourceListLan: ArrayList<RttLanguageEnum> = arrayListOf(RttLanguageEnum.ZH_CN, RttLanguageEnum.EN_US, RttLanguageEnum.JA_JP),
-    val targetListLan: ArrayList<RttLanguageEnum> = arrayListOf(RttLanguageEnum.NONE, RttLanguageEnum.ZH_CN, RttLanguageEnum.EN_US,
-        RttLanguageEnum.JA_JP),
+    val targetListLan: ArrayList<RttLanguageEnum> = arrayListOf(
+        RttLanguageEnum.NONE, RttLanguageEnum.ZH_CN, RttLanguageEnum.EN_US,
+        RttLanguageEnum.JA_JP
+    ),
     private var sourceLan: RttLanguageEnum = RttLanguageEnum.ZH_CN,
     private var targetLanList: ArrayList<RttLanguageEnum> = arrayListOf(RttLanguageEnum.NONE),
-    private var targetLan:RttLanguageEnum =RttLanguageEnum.NONE,
-    private var showDoubleLan: Boolean = SpUtil.getBoolean(rttOptionsManager.rttOptions.getApplicationContext(),
-        "${rttOptionsManager.eduCore?.config?.roomUuid ?: ""}_showDoubleLan", false),
+    private var targetLan: RttLanguageEnum = RttLanguageEnum.NONE,
+    private var showDoubleLan: Boolean = SpUtil.getBoolean(
+        rttOptionsManager.rttOptions.getApplicationContext(),
+        "${rttOptionsManager.eduCore?.config?.roomUuid ?: ""}_showDoubleLan", false
+    ),
 ) {
     init {
         val locale: Locale = MultiLanguageUtil.getAppLocale(rttOptionsManager.rttOptions.getActivityContext())
@@ -893,16 +906,24 @@ class RttSettingInfo(
         val sysCountry = locale.country // CN
         //默认源语言设置
         sourceLan =
-            if (sysLanguage.equals(Locale.SIMPLIFIED_CHINESE.language, ignoreCase = true) && sysCountry.equals(Locale.SIMPLIFIED_CHINESE.country,
-                    ignoreCase = true)) {
+            if (sysLanguage.equals(Locale.SIMPLIFIED_CHINESE.language, ignoreCase = true) && sysCountry.equals(
+                    Locale.SIMPLIFIED_CHINESE.country,
+                    ignoreCase = true
+                )
+            ) {
                 RttLanguageEnum.ZH_CN
             } else if (sysLanguage.equals(Locale.US.language, ignoreCase = true) && sysCountry.equals(Locale.US.country, ignoreCase = true)) {
                 RttLanguageEnum.EN_US
-            } else if (Locale.getDefault().language.equals(Locale.SIMPLIFIED_CHINESE.language,
-                    ignoreCase = true) && Locale.getDefault().country.equals(Locale.SIMPLIFIED_CHINESE.country, ignoreCase = true)) {
+            } else if (Locale.getDefault().language.equals(
+                    Locale.SIMPLIFIED_CHINESE.language,
+                    ignoreCase = true
+                ) && Locale.getDefault().country.equals(Locale.SIMPLIFIED_CHINESE.country, ignoreCase = true)
+            ) {
                 RttLanguageEnum.ZH_CN
             } else if (Locale.getDefault().language.equals(Locale.US.language, ignoreCase = true) && Locale.getDefault().country.equals(
-                    Locale.US.country, ignoreCase = true)) {
+                    Locale.US.country, ignoreCase = true
+                )
+            ) {
                 RttLanguageEnum.EN_US
             } else {
                 RttLanguageEnum.EN_US
@@ -928,8 +949,10 @@ class RttSettingInfo(
 
     fun setShowDoubleLan(show: Boolean) {
         this.showDoubleLan = show
-        SpUtil.saveBoolean(rttOptionsManager.rttOptions.getApplicationContext(), "${rttOptionsManager.eduCore?.config?.roomUuid ?: ""}_showDoubleLan",
-            show)
+        SpUtil.saveBoolean(
+            rttOptionsManager.rttOptions.getApplicationContext(), "${rttOptionsManager.eduCore?.config?.roomUuid ?: ""}_showDoubleLan",
+            show
+        )
     }
 }
 
@@ -1242,7 +1265,7 @@ private class RttSubtitlesManager(private val rttOptionsManager: RttOptionsManag
      */
     fun setShowCurrentData(recordItem: RttRecordItem?, currentSettingInfo: RttSettingInfo) {
         if (isOpenSubtitles()) {
-            listener.subtitlesViewReset(true)
+//            listener.subtitlesViewReset(true)
             //清除消息
             this.clearHandlerMsg()
 
@@ -1393,16 +1416,16 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
      */
     fun initOpenConversion(state: Boolean) {
         openSuccess = state
-       rttOptionsManager.rttOptions.runOnUiThread{
-           listener.conversionViewReset()
-           listener.conversionStateChange(openSuccess)
-           rttConversionDialog.changeShowButton(openSuccess)
-           if(openSuccess){
-               rttOptionsManager.startExperience()
-           }else{
-               rttOptionsManager.stopExperience()
-           }
-       }
+        rttOptionsManager.rttOptions.runOnUiThread {
+            listener.conversionViewReset()
+            listener.conversionStateChange(openSuccess)
+            rttConversionDialog.changeShowButton(openSuccess)
+            if (openSuccess) {
+                rttOptionsManager.startExperience()
+            } else {
+                rttOptionsManager.stopExperience()
+            }
+        }
     }
 
     /**
@@ -1418,7 +1441,8 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
     fun updateShowList(list: List<RttRecordItem>) {
         try {
             rttConversionDialog.updateShowList(list)
-        }catch (ignore:Exception){}
+        } catch (ignore: Exception) {
+        }
     }
 
     /**
@@ -1432,14 +1456,16 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
                 .getString(if (toOpen) R.string.fcr_dialog_rtt_text_conversion_state_open else R.string.fcr_dialog_rtt_text_conversion_state_close)
         }"
         val toastContent = "${rttOptionsManager.formatRoleName(userInfo, localUserInfo)}${
-            rttOptionsManager.rttOptions.getApplicationContext().getString(if (userInfo.userUuid == localUserInfo?.userUuid) {
-                if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open_me_show else R.string.fcr_dialog_rtt_toast_conversion_state_close_me_show
-            } else {
-                if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open else R.string.fcr_dialog_rtt_toast_conversion_state_close
-            })
+            rttOptionsManager.rttOptions.getApplicationContext().getString(
+                if (userInfo.userUuid == localUserInfo?.userUuid) {
+                    if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open_me_show else R.string.fcr_dialog_rtt_toast_conversion_state_close_me_show
+                } else {
+                    if (toOpen) R.string.fcr_dialog_rtt_toast_conversion_state_open else R.string.fcr_dialog_rtt_toast_conversion_state_close
+                }
+            )
         }"
         if (!rttOptionsManager.isOpenConversion() && toOpen && userInfo.userUuid != localUserInfo?.userUuid) {
-            rttOptionsManager.rttOptions.runOnUiThread{
+            rttOptionsManager.rttOptions.runOnUiThread {
                 AgoraUIDialogBuilder(rttOptionsManager.rttOptions.getActivityContext()).title(appContext.resources.getString(R.string.fcr_dialog_rtt_conversion))
                     .message(textContent).messagePaddingHorizontal(appContext.resources.getDimensionPixelOffset(R.dimen.dp_10))
                     .negativeText(appContext.resources.getString(R.string.fcr_dialog_rtt_oher_change_source_hint_cancel))
@@ -1477,8 +1503,10 @@ private class RttConversionManager(private val rttOptionsManager: RttOptionsMana
         }${rttOptionsManager.rttOptions.getApplicationContext().getString(R.string.fcr_dialog_rtt_text_change_source_language)}"
         val languageText = rttOptionsManager.rttOptions.getApplicationContext().getString(sourceEnum.textRes)
         val showContent = SpannableString("$useText${languageText}")
-        showContent.setSpan(ForegroundColorSpan(ContextCompat.getColor(rttOptionsManager.rttOptions.getApplicationContext(), R.color.fcr_blue_4262)),
-            showContent.lastIndexOf(languageText), showContent.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE)
+        showContent.setSpan(
+            ForegroundColorSpan(ContextCompat.getColor(rttOptionsManager.rttOptions.getApplicationContext(), R.color.fcr_blue_4262)),
+            showContent.lastIndexOf(languageText), showContent.length, Spanned.SPAN_INCLUSIVE_EXCLUSIVE
+        )
         AgoraUIToast.showDefaultToast(rttOptionsManager.rttOptions.getApplicationContext(), showContent)
         //通知处理
         useManager.disposeDataChangeSourceLanguage(userInfo, showContent.toString())
@@ -1680,8 +1708,6 @@ private class RttUseManager(
                 } else {
                     paramsData = allRecordList.findLast { it.uid == rttMsgData.uid }?.apply {
                         uuid = UUID.randomUUID().toString()
-                        currentTargetLan = settingInfo.getTargetLan()
-                        showDoubleLan = settingInfo.isShowDoubleLan()
                         sourceText = sourceTextStr.toString()
                         time = if (final) if (rttMsgData.time == 0L) rttMsgData.time else System.currentTimeMillis() else rttMsgData.time
                         isFinal = final
@@ -1701,10 +1727,10 @@ private class RttUseManager(
                         LogX.i(TAG, "Translation:$lastItemByUid$$$$$$$$$text")
                         transTextStr.append(text)
                     }
-                    tranList.find { transItem.lang == it.language?.value }.let {find->
-                        if(find != null){
+                    tranList.find { transItem.lang == it.language?.value }.let { find ->
+                        if (find != null) {
                             find.text = transTextStr.toString()
-                        }else{
+                        } else {
                             tranList.add(RttRecordItemTran().apply {
                                 language = RttLanguageEnum.values().find { it.value == transItem.lang }
                                 text = transTextStr.toString()
@@ -1715,11 +1741,10 @@ private class RttUseManager(
                 }
 
                 paramsData = allRecordList.findLast { it.uid == lastItemByUid }?.apply {
-                    currentTargetLan = settingInfo.getTargetLan()
                     uuid = UUID.randomUUID().toString()
                     showDoubleLan = settingInfo.isShowDoubleLan()
                     targetInfo = tranList
-                    targetText = tranList.find { item-> (item.language?.value ?:"") == currentTargetLan?.value }?.text
+                    targetText = tranList.find { item -> (item.language?.value ?: "") == currentTargetLan?.value }?.text
                 }
             }
         }
@@ -1736,7 +1761,6 @@ private class RttUseManager(
         formatAllUserInfo(streamContext)
         return paramsData
     }
-
 
     /**
      * 格式化所有的用户信息
@@ -1780,6 +1804,13 @@ private class RttUseManager(
             showRecordList[showRecordList.size - 1].isFinal = true
         }
         lastRecord?.isFinal = true
+    }
+
+    /**
+     * 体验时间是否用完
+     */
+    fun experienceReduceTimeZero(): Boolean {
+        return this.rttExperienceReduceTime <= 0
     }
 
 }
